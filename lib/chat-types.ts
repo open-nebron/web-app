@@ -218,3 +218,12 @@ export interface WSReactionRemovedPayload {
   emoji: string;
   userId: string;
 }
+
+export interface SearchMessageResult {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  highlightedBody: string;
+  createdAt: string;
+}

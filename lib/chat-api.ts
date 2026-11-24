@@ -288,4 +288,20 @@ export const chatApi = {
     );
     return res.data;
   },
+
+  async searchMessages(
+    q: string,
+    conversationId?: string,
+    limit: number = 20
+  ): Promise<import('./chat-types').SearchMessageResult[]> {
+    const query = new URLSearchParams();
+    query.set('q', q);
+    if (conversationId) query.set('conversationId', conversationId);
+    if (limit) query.set('limit', String(limit));
+
+    const res = await apiFetch<{ data: import('./chat-types').SearchMessageResult[] }>(
+      `/api/chat/search/messages?${query.toString()}`
+    );
+    return res.data || [];
+  },
 };

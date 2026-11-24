@@ -14,9 +14,10 @@ import { BlockUserMenu } from '@/components/users/block-user-menu';
 import { CallButton } from '@/components/call/call-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Conversation } from '@/lib/chat-types';
-import { ArrowLeft, Phone, Users, Settings, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Phone, Users, Settings, ShieldAlert, Search } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
+import { useSearchStore } from '@/lib/search-store';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ interface ConversationHeaderProps {
 export function ConversationHeader({ conversation }: ConversationHeaderProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const openSearch = useSearchStore((state) => state.openSearch);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const isDirect = conversation.kind === 'direct';
 
@@ -143,6 +145,17 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
 
         {/* Action icons on right */}
         <div className="flex items-center gap-1">
+          {/* Search messages in conversation */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openSearch(conversation.id)}
+            aria-label="Search messages"
+          >
+            <Search className="w-4 h-4" />
+          </Button>
+
           {/* Voice call button (1:1 only) */}
           {isDirect && conversation.peerUserId && (
             <CallButton peerUserId={conversation.peerUserId} />

@@ -11,10 +11,12 @@ import {
   ChevronUp,
   Phone,
   Star,
+  Search,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
 import { useConversations } from '@/hooks/use-conversations';
+import { useSearchStore } from '@/lib/search-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -33,6 +35,7 @@ export function AppSidebar() {
   const { data: profile, isLoading } = useProfile();
   const { logout, isLoggingOut } = useAuth();
   const { conversations } = useConversations();
+  const openSearch = useSearchStore((state) => state.openSearch);
 
   const totalUnread = conversations.reduce(
     (sum, c) => sum + (c.unreadCount || 0),
@@ -72,6 +75,21 @@ export function AppSidebar() {
               Navigation
             </h4>
             <nav className="space-y-1">
+              <button
+                type="button"
+                onClick={() => openSearch()}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+                aria-label="Search messages"
+              >
+                <div className="flex items-center space-x-3">
+                  <Search className="h-4 w-4" />
+                  <span>Search</span>
+                </div>
+                <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border rounded">
+                  ⌘K
+                </kbd>
+              </button>
+
               <Link
                 href="/chat"
                 className={`flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
