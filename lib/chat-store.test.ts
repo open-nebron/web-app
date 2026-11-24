@@ -60,6 +60,25 @@ describe('useChatStore', () => {
     expect(useChatStore.getState().presenceByUser['user-3'].status).toBe('offline');
   });
 
+  it('manages replyingTo state', () => {
+    const store = useChatStore.getState();
+    const mockMsg = {
+      id: 'msg-1',
+      conversationId: 'conv-1',
+      senderId: 'user-1',
+      body: 'Hello to reply to',
+      createdAt: '2026-11-24T12:00:00Z',
+      editedAt: null,
+      deleted: false,
+    };
+
+    store.setReplyingTo(mockMsg);
+    expect(useChatStore.getState().replyingTo).toEqual(mockMsg);
+
+    store.clearReplyingTo();
+    expect(useChatStore.getState().replyingTo).toBeNull();
+  });
+
   it('manages active conversation and WS status', () => {
     const store = useChatStore.getState();
     store.setActiveConversation('conv-99');

@@ -18,11 +18,12 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { cn } from '@/lib/utils';
-import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2, SmilePlus } from 'lucide-react';
+import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2, SmilePlus, Reply, Forward } from 'lucide-react';
 import { useChatStore } from '@/lib/chat-store';
 import { chatApi } from '@/lib/chat-api';
 import { MessageReactions } from './message-reactions';
 import { EmojiPicker } from './emoji-picker';
+import { ForwardDialog } from './forward-dialog';
 
 interface MessageRowProps {
   message: ChatMessage;
@@ -43,13 +44,31 @@ export function MessageRow({
 }: MessageRowProps) {
   const { data: sender } = useUser(!isSelf ? message.senderId : undefined);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { setEditingMessage, starredMessageIds, starMessageId, unstarMessageId } = useChatStore();
+  const { setEditingMessage, setReplyingTo, starredMessageIds, starMessageId, unstarMessageId } = useChatStore();
   const isStarred = Boolean(message.id && starredMessageIds.has(message.id));
+
+  const { data: replySender } = useUser(message.replyTo?.senderId);
+  const { data: forwardSender } = useUser(message.forwardedFrom?.senderId);
+  const replySenderName = replySender?.name || replySender?.username || 'User';
+  const forwardSenderName = forwardSender?.name || forwardSender?.username || message.forwardedFrom?.senderId?.substring(0, 8) || 'user';
 
   const time = message.createdAt ? format(new Date(message.createdAt), 'h:mm a') : '';
   const senderName = sender?.name || sender?.username || 'User';
+
+  const handleJumpToMessage = (targetId?: string) => {
+    if (!targetId) return;
+    const el = document.getElementById(`message-${targetId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bg-amber-400/30', 'ring-2', 'ring-amber-400');
+      setTimeout(() => {
+        el.classList.remove('bg-amber-400/30', 'ring-2', 'ring-amber-400');
+      }, 1500);
+    }
+  };
 
   const handleCopy = async () => {
     if (!message.body) return;
@@ -122,8 +141,9 @@ export function MessageRow({
   return (
     <>
       <div
+        id={message.id ? `message-${message.id}` : undefined}
         className={cn(
-          'group flex gap-2 px-4 py-0.5 items-end max-w-full',
+          'group flex gap-2 px-4 py-0.5 items-end max-w-full rounded-lg transition-all duration-300',
           isSelf ? 'justify-end' : 'justify-start'
         )}
       >
@@ -145,7 +165,7 @@ export function MessageRow({
           </div>
         )}
 
-        {/* Hover action bar (for own messages: copy, star, edit, delete; for peer: copy, star) */}
+        {/* Hover action bar (for own messages: reply, forward, copy, star, edit, delete; for peer: reply, forward, copy, star) */}
         {!message.deleted && message.id && (
           <div
             className={cn(
@@ -165,6 +185,30 @@ export function MessageRow({
                 <SmilePlus className="w-3.5 h-3.5" />
               </Button>
             </EmojiPicker>
+
+            {/* Reply */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+              onClick={() => setReplyingTo(message)}
+              aria-label="Reply to message"
+            >
+              <Reply className="w-3.5 h-3.5" />
+            </Button>
+
+            {/* Forward */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+              onClick={() => setShowForwardDialog(true)}
+              aria-label="Forward message"
+            >
+              <Forward className="w-3.5 h-3.5" />
+            </Button>
 
             {/* Copy button */}
             {message.body && (
@@ -260,6 +304,40 @@ export function MessageRow({
                   : 'bg-muted text-foreground rounded-bl-xs'
               )}
             >
+              {/* Forwarded from indicator */}
+              {message.forwardedFrom && (
+                <div
+                  className={cn(
+                    'flex items-center gap-1 text-[11px] mb-1 font-medium select-none',
+                    isSelf ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                  )}
+                >
+                  <Forward className="w-3 h-3" />
+                  <span>Forwarded from @{forwardSenderName}</span>
+                </div>
+              )}
+
+              {/* Reply-to quote block */}
+              {message.replyTo && (
+                <div
+                  onClick={() => handleJumpToMessage(message.replyTo?.id)}
+                  className={cn(
+                    'text-xs px-2.5 py-1 mb-1.5 rounded-lg border-l-2 cursor-pointer transition-colors select-none text-left',
+                    isSelf
+                      ? 'bg-primary-foreground/15 border-primary-foreground/70 hover:bg-primary-foreground/25 text-primary-foreground'
+                      : 'bg-background/60 border-primary hover:bg-background/90 text-muted-foreground'
+                  )}
+                >
+                  <div className="font-semibold text-[11px] flex items-center gap-1">
+                    <Reply className="w-3 h-3 rotate-180" />
+                    <span>{replySenderName}</span>
+                  </div>
+                  <div className="line-clamp-1 italic text-[11px]">
+                    {message.replyTo.deleted ? '(original message deleted)' : message.replyTo.body}
+                  </div>
+                </div>
+              )}
+
               {message.body}
 
               {/* Timestamp & Status footer */}
@@ -332,6 +410,13 @@ export function MessageRow({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Forward message dialog */}
+      <ForwardDialog
+        open={showForwardDialog}
+        onOpenChange={setShowForwardDialog}
+        message={message}
+      />
     </>
   );
 }

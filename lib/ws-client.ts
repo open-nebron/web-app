@@ -411,9 +411,21 @@ export class WsClient {
     });
   }
 
-  public sendMessage(conversationId: string, body: string, clientId?: string): Promise<any> {
+  public sendMessage(
+    conversationId: string,
+    body: string,
+    clientId?: string,
+    replyToId?: string,
+    forwardOf?: { messageId: string; conversationId: string; senderId?: string }
+  ): Promise<any> {
     const cid = clientId || 'c-' + Math.random().toString(36).substring(2, 12);
-    return this.send('message.send', { conversationId, body, clientId: cid });
+    return this.send('message.send', {
+      conversationId,
+      body,
+      clientId: cid,
+      ...(replyToId ? { replyToId } : {}),
+      ...(forwardOf ? { forwardOf } : {}),
+    });
   }
 
   public sendRead(conversationId: string, messageId: string): Promise<any> {

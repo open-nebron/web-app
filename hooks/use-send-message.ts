@@ -13,8 +13,12 @@ export function useSendMessage(conversationId: string) {
   const user = useAuthStore((s) => s.user);
 
   const sendMessage = useCallback(
-    async (body: string) => {
-      if (!conversationId || !body.trim() || !user) return;
+    async (
+      body: string,
+      replyToId?: string,
+      forwardOf?: { messageId: string; conversationId: string; senderId?: string }
+    ) => {
+      if (!conversationId || (!body.trim() && !forwardOf) || !user) return;
 
       const trimmedBody = body.trim();
       const clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
@@ -31,6 +35,14 @@ export function useSendMessage(conversationId: string) {
         deleted: false,
         status: 'sending',
         clientId,
+        replyToId: replyToId || null,
+        forwardedFrom: forwardOf
+          ? {
+              senderId: forwardOf.senderId || user.userId,
+              messageId: forwardOf.messageId,
+              conversationId: forwardOf.conversationId,
+            }
+          : null,
       };
 
       const messagesKey = ['messages', conversationId];
@@ -76,14 +88,14 @@ export function useSendMessage(conversationId: string) {
 
       // 3. Send via WebSocket (or HTTP fallback)
       try {
-        let confirmedMessage: any = null;
+        let confirmedMessage: ChatMessage | null = null;
 
         if (wsStatus === 'connected') {
-          const res = await wsSendMessage(conversationId, trimmedBody, clientId);
-          confirmedMessage = res?.payload?.message;
+          const res = await wsSendMessage(conversationId, trimmedBody, clientId, replyToId, forwardOf);
+          confirmedMessage = res?.payload?.message ?? null;
         } else {
-          const res = await chatApi.sendMessageHttp(conversationId, trimmedBody, clientId);
-          confirmedMessage = res?.message;
+          const res = await chatApi.sendMessageHttp(conversationId, trimmedBody, clientId, replyToId, forwardOf);
+          confirmedMessage = res?.message ?? null;
         }
 
         // 4. Update optimistic message to confirmed status

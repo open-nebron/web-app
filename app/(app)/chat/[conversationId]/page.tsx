@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ConversationList } from '@/components/chat/conversation-list';
 import { ConversationHeader } from '@/components/chat/conversation-header';
 import { MessageList } from '@/components/chat/message-list';
@@ -22,12 +22,15 @@ import type { ChatMessage, Conversation } from '@/lib/chat-types';
 export default function ConversationPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const messageIdParam = searchParams?.get('messageId');
   const conversationId = params?.conversationId as string;
   const currentUserId = useAuthStore((s) => s.user?.userId || null);
   const { setActiveConversation } = useChatStore();
   const queryClient = useQueryClient();
   const [isAcceptedLocally, setIsAcceptedLocally] = React.useState(false);
   const [isActingOnRequest, setIsActingOnRequest] = React.useState(false);
+  const hasScrolledToMessageRef = useRef<string | null>(null);
 
   const { data: pendingRequests = [] } = useQuery({
     queryKey: ['conversation-requests'],
@@ -124,6 +127,24 @@ export default function ConversationPage() {
     lastMarkedReadIdRef.current = latestPeerMsg.id;
     markAsRead(latestPeerMsg.id);
   }, [conversationId, messages, currentUserId, markAsRead]);
+
+  // Handle jump & flash to target message if messageId query param provided
+  useEffect(() => {
+    if (!messageIdParam || messages.length === 0) return;
+    if (hasScrolledToMessageRef.current === messageIdParam) return;
+
+    const el = document.getElementById(`message-${messageIdParam}`);
+    if (el) {
+      hasScrolledToMessageRef.current = messageIdParam;
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-amber-400/30', 'ring-2', 'ring-amber-400');
+        setTimeout(() => {
+          el.classList.remove('bg-amber-400/30', 'ring-2', 'ring-amber-400');
+        }, 1500);
+      }, 100);
+    }
+  }, [messageIdParam, messages]);
 
   // Handle retry
   const handleRetry = (msg: ChatMessage) => {
@@ -278,7 +299,7 @@ export default function ConversationPage() {
 
         <MessageComposer
           conversationId={conversationId}
-          onSend={(text) => sendMessage(text)}
+          onSend={(text, replyToId) => sendMessage(text, replyToId)}
           disabled={isPeerBlocked || isPendingForMe}
           placeholder={isPendingForMe ? 'Accept this request to reply' : undefined}
         />

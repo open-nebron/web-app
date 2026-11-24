@@ -19,6 +19,7 @@ export interface ChatState {
   editingMessageId: string | null;
   editingMessage: import('./chat-types').ChatMessage | null;
   starredMessageIds: Set<string>;
+  replyingTo: import('./chat-types').ChatMessage | null;
 
   addTyping: (conversationId: string, userId: string) => void;
   clearTyping: (conversationId: string, userId: string) => void;
@@ -32,6 +33,8 @@ export interface ChatState {
   setEditingMessageId: (id: string | null) => void;
   setEditingMessage: (msg: import('./chat-types').ChatMessage | null) => void;
   clearEditingMessage: () => void;
+  setReplyingTo: (msg: import('./chat-types').ChatMessage | null) => void;
+  clearReplyingTo: () => void;
   starMessageId: (id: string) => void;
   unstarMessageId: (id: string) => void;
   setStarredMessageIds: (ids: string[]) => void;
@@ -46,6 +49,7 @@ export const useChatStore = create<ChatState>((set) => ({
   editingMessageId: null,
   editingMessage: null,
   starredMessageIds: new Set<string>(),
+  replyingTo: null,
 
   addTyping: (conversationId, userId) =>
     set((state) => {
@@ -148,6 +152,16 @@ export const useChatStore = create<ChatState>((set) => ({
     set({
       editingMessage: null,
       editingMessageId: null,
+    }),
+
+  setReplyingTo: (msg) =>
+    set({
+      replyingTo: msg,
+    }),
+
+  clearReplyingTo: () =>
+    set({
+      replyingTo: null,
     }),
 
   starMessageId: (id) =>

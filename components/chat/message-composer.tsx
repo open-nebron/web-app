@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Paperclip, Pencil, X } from 'lucide-react';
+import { Send, Paperclip, Pencil, X, Reply } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore } from '@/lib/chat-store';
@@ -12,7 +12,7 @@ import { toast } from '@/components/ui/use-toast';
 
 interface MessageComposerProps {
   conversationId: string;
-  onSend: (text: string) => void;
+  onSend: (text: string, replyToId?: string) => void;
   disabled?: boolean;
   placeholder?: string;
 }
@@ -23,7 +23,7 @@ export function MessageComposer({
   disabled = false,
   placeholder,
 }: MessageComposerProps) {
-  const { drafts, setDraft, clearDraft, editingMessage, clearEditingMessage } = useChatStore();
+  const { drafts, setDraft, clearDraft, editingMessage, clearEditingMessage, replyingTo, clearReplyingTo } = useChatStore();
   const initialDraft = drafts[conversationId] || '';
   const [text, setText] = useState(initialDraft);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,6 +43,13 @@ export function MessageComposer({
       setText(drafts[conversationId] || '');
     }
   }, [conversationId, drafts, editingMessage]);
+
+  // Focus textarea when replyingTo changes
+  useEffect(() => {
+    if (replyingTo) {
+      textareaRef.current?.focus();
+    }
+  }, [replyingTo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -81,10 +88,12 @@ export function MessageComposer({
       return;
     }
 
+    const replyTargetId = replyingTo?.id;
+    clearReplyingTo();
     setText('');
     clearDraft(conversationId);
     stopTypingImmediately();
-    onSend(bodyToSend);
+    onSend(bodyToSend, replyTargetId);
 
     // Keep focus
     setTimeout(() => {
@@ -93,10 +102,17 @@ export function MessageComposer({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape' && isEditing) {
-      e.preventDefault();
-      handleCancelEdit();
-      return;
+    if (e.key === 'Escape') {
+      if (isEditing) {
+        e.preventDefault();
+        handleCancelEdit();
+        return;
+      }
+      if (replyingTo) {
+        e.preventDefault();
+        clearReplyingTo();
+        return;
+      }
     }
 
     // Enter without Shift sends
@@ -119,6 +135,26 @@ export function MessageComposer({
             onClick={handleCancelEdit}
             className="hover:text-foreground text-muted-foreground p-0.5 rounded transition-colors"
             aria-label="Cancel edit"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {replyingTo && !isEditing && (
+        <div className="flex items-center justify-between pb-1.5 px-2 text-xs text-muted-foreground mb-1 bg-muted/40 rounded-lg p-1.5">
+          <div className="flex items-center gap-1.5 min-w-0 text-foreground">
+            <Reply className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="font-medium shrink-0">Replying to:</span>
+            <span className="truncate italic text-muted-foreground">
+              {replyingTo.body ? replyingTo.body.substring(0, 80) : 'message'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={clearReplyingTo}
+            className="hover:text-foreground text-muted-foreground p-0.5 rounded transition-colors shrink-0"
+            aria-label="Cancel reply"
           >
             <X className="w-4 h-4" />
           </button>

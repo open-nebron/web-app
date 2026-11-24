@@ -120,14 +120,25 @@ export const chatApi = {
   async sendMessageHttp(
     conversationId: string,
     body: string,
-    clientId?: string
+    clientId?: string,
+    replyToId?: string,
+    forwardOf?: { messageId: string; conversationId: string; senderId?: string }
   ): Promise<{ message: ChatMessage }> {
     return apiFetch<{ message: ChatMessage }>(
       `/api/chat/conversations/${conversationId}/messages`,
       {
         method: 'POST',
-        body: JSON.stringify({ body, clientId }),
+        body: JSON.stringify({ body, clientId, replyToId, forwardOf }),
       }
+    );
+  },
+
+  async getMessage(
+    conversationId: string,
+    messageId: string
+  ): Promise<{ data: ChatMessage }> {
+    return apiFetch<{ data: ChatMessage }>(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}`
     );
   },
 

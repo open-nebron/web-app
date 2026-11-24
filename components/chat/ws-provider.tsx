@@ -20,7 +20,13 @@ interface WsSendResult {
 interface WsContextType {
   client: WsClient;
   status: WsStatus;
-  sendMessage: (conversationId: string, body: string, clientId?: string) => Promise<WsSendResult>;
+  sendMessage: (
+    conversationId: string,
+    body: string,
+    clientId?: string,
+    replyToId?: string,
+    forwardOf?: { messageId: string; conversationId: string; senderId?: string }
+  ) => Promise<WsSendResult>;
   sendRead: (conversationId: string, messageId: string) => Promise<unknown>;
   sendTyping: (conversationId: string, isTyping: boolean) => Promise<unknown>;
 }
@@ -215,7 +221,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
   const value: WsContextType = {
     client,
     status: wsStatus,
-    sendMessage: (convId, body, cId) => client.sendMessage(convId, body, cId),
+    sendMessage: (convId, body, cId, replyToId, forwardOf) =>
+      client.sendMessage(convId, body, cId, replyToId, forwardOf),
     sendRead: (convId, msgId) => client.sendRead(convId, msgId),
     sendTyping: (convId, isTyping) => client.sendTyping(convId, isTyping),
   };

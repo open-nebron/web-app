@@ -35,6 +35,20 @@ export interface ReactionSummary {
   userIds: string[];
 }
 
+export interface MessagePreview {
+  id: string;
+  body: string;
+  senderId: string;
+  createdAt: string;
+  deleted: boolean;
+}
+
+export interface ForwardedFromInfo {
+  senderId: string;
+  messageId?: string;
+  conversationId?: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -47,6 +61,9 @@ export interface ChatMessage {
   clientId?: string;
   senderProfile?: PublicUser | null;
   reactions?: ReactionSummary[];
+  replyToId?: string | null;
+  replyTo?: MessagePreview | null;
+  forwardedFrom?: ForwardedFromInfo | null;
 }
 
 export interface ConversationMember {
