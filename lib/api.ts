@@ -37,7 +37,7 @@ export async function apiFetch<T = unknown>(
   const token = useAuthStore.getState().accessToken;
 
   const headers = new Headers(customHeaders);
-  if (!headers.has('Content-Type') && !(restOptions.body instanceof FormData)) {
+  if (restOptions.body && !headers.has('Content-Type') && !(restOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
