@@ -24,7 +24,7 @@ export default function CallsPage() {
     queryFn: () => voiceApi.getCallHistory({ limit: 30 }),
   });
 
-  const calls = data?.data || [];
+  const calls = useMemo(() => data?.data || [], [data?.data]);
 
   // Group calls by day
   const groupedCalls = useMemo<DayGroup[]>(() => {
