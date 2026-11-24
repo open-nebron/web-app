@@ -58,13 +58,7 @@ export async function apiFetch<T = unknown>(
   // Handle 401 Unauthorized with token refresh
   if (response.status === 401 && !_retry && !path.includes('/refresh/cookie') && !path.includes('/login/cookie')) {
     try {
-      if (!refreshPromise) {
-        refreshPromise = authApi.refresh().finally(() => {
-          refreshPromise = null;
-        });
-      }
-
-      await refreshPromise;
+      await authApi.refresh();
 
       // Retry original request with new access token
       return await apiFetch<T>(path, {
@@ -150,13 +144,25 @@ export const authApi = {
   },
 
   async refresh(): Promise<RefreshResponse> {
-    const data = await apiFetch<RefreshResponse>('/api/auth-cookie/refresh/cookie', {
-      method: 'POST',
-      credentials: 'include',
-    });
+    if (refreshPromise) {
+      return refreshPromise;
+    }
 
-    useAuthStore.getState().setAccessToken(data.accessToken);
-    return data;
+    refreshPromise = (async () => {
+      try {
+        const data = await apiFetch<RefreshResponse>('/api/auth-cookie/refresh/cookie', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        useAuthStore.getState().setAccessToken(data.accessToken);
+        return data;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
   },
 
   async me(): Promise<AuthUser> {

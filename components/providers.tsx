@@ -10,25 +10,24 @@ import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from '@/components/ui/use-toast';
 
+let initAuthPromise: Promise<void> | null = null;
+
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const setStatus = useAuthStore((s) => s.setStatus);
   const setUser = useAuthStore((s) => s.setUser);
   const clear = useAuthStore((s) => s.clear);
 
   React.useEffect(() => {
-    let isMounted = true;
+    if (initAuthPromise) return;
 
-    async function initializeAuth() {
+    initAuthPromise = (async () => {
       setStatus('loading');
       try {
         await authApi.refresh();
         const me = await authApi.me();
-        if (isMounted) {
-          setUser({ userId: me.userId, email: me.email });
-          setStatus('authenticated');
-        }
+        setUser({ userId: me.userId, email: me.email });
+        setStatus('authenticated');
       } catch (err: unknown) {
-        if (!isMounted) return;
         clear();
         const error = err as { status?: number; message?: string };
         if (error?.status === 401) {
@@ -44,14 +43,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
         } else {
           setStatus('unauthenticated');
         }
+      } finally {
+        initAuthPromise = null;
       }
-    }
-
-    initializeAuth();
-
-    return () => {
-      isMounted = false;
-    };
+    })();
   }, [setStatus, setUser, clear]);
 
   return <>{children}</>;
