@@ -7,10 +7,10 @@ import type {
 } from './call-types';
 
 export const voiceApi = {
-  async startCall(calleeId: string): Promise<StartCallResponse> {
+  async startCall(calleeId: string, mode: 'audio' | 'video' = 'audio'): Promise<StartCallResponse> {
     return apiFetch<StartCallResponse>('/api/voice/calls', {
       method: 'POST',
-      body: JSON.stringify({ calleeId }),
+      body: JSON.stringify({ calleeId, mode }),
     });
   },
 

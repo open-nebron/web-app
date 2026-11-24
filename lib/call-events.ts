@@ -28,6 +28,7 @@ export function useCallEventHandlers() {
       callerId: payload.callerId,
       roomName: payload.roomName || `call-${payload.callId}`,
       startedAt: payload.startedAt || new Date().toISOString(),
+      mode: payload.mode || 'audio',
     });
 
     ringtone.start();
@@ -37,10 +38,13 @@ export function useCallEventHandlers() {
     if (typeof document !== 'undefined' && document.hidden) {
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
-          new Notification('Incoming voice call', {
-            body: 'Incoming call on Nebron',
-            icon: '/favicon.ico',
-          });
+          new Notification(
+            payload.mode === 'video' ? 'Incoming video call' : 'Incoming voice call',
+            {
+              body: 'Incoming call on Nebron',
+              icon: '/favicon.ico',
+            }
+          );
         } catch {
           // Ignore notification error
         }
@@ -59,6 +63,7 @@ export function useCallEventHandlers() {
         calleeId: payload.calleeId,
         roomName: payload.roomName || `call-${payload.callId}`,
         startedAt: new Date().toISOString(),
+        mode: payload.mode || 'audio',
       });
     }
   });
@@ -76,6 +81,8 @@ export function useCallEventHandlers() {
       currentState.kind === 'outgoing'
         ? currentState.startedAt
         : new Date().toISOString();
+    const mode =
+      payload.mode || (currentState.kind === 'outgoing' ? currentState.mode : 'audio');
 
     setState({
       kind: 'connecting',
@@ -85,6 +92,7 @@ export function useCallEventHandlers() {
       token: payload.callerToken,
       peerId,
       startedAt,
+      mode,
     });
   });
 
@@ -101,6 +109,8 @@ export function useCallEventHandlers() {
       currentState.kind === 'incoming'
         ? currentState.startedAt
         : new Date().toISOString();
+    const mode =
+      payload.mode || (currentState.kind === 'incoming' ? currentState.mode : 'audio');
 
     setState({
       kind: 'connecting',
@@ -110,6 +120,7 @@ export function useCallEventHandlers() {
       token: payload.calleeToken,
       peerId,
       startedAt,
+      mode,
     });
   });
 

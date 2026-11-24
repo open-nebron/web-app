@@ -14,12 +14,14 @@ interface OutgoingCallScreenProps {
   calleeId: string;
   roomName: string;
   startedAt: string;
+  mode?: 'audio' | 'video';
 }
 
 export function OutgoingCallScreen({
   callId,
   calleeId,
   startedAt,
+  mode = 'audio',
 }: OutgoingCallScreenProps) {
   const { reset } = useCallStore();
   const { data: callee } = useUser(calleeId);
@@ -90,7 +92,7 @@ export function OutgoingCallScreen({
             {callee?.username ? `@${callee.username}` : ''}
           </p>
           <p className="text-xs font-medium text-muted-foreground animate-pulse pt-1">
-            Calling... ({formattedTime})
+            Calling ({mode === 'video' ? 'video' : 'voice'})... ({formattedTime})
           </p>
         </div>
 

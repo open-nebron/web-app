@@ -5,8 +5,9 @@ import '@livekit/components-styles';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  useLocalParticipant,
+  VideoConference,
   useRemoteParticipants,
+  useLocalParticipant,
   useRoomContext,
   ParticipantContext,
   ConnectionQualityIndicator,
@@ -15,19 +16,12 @@ import { useCallStore } from '@/lib/call-store';
 import { voiceApi } from '@/lib/voice-api';
 import { useUser } from '@/hooks/use-user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import {
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  PhoneOff,
-  AlertCircle,
-  Wifi,
-} from 'lucide-react';
+import { AlertCircle, Wifi } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { CallControls } from './call-controls';
+import { cn } from '@/lib/utils';
 
-interface ActiveCallScreenProps {
+export interface ActiveCallScreenProps {
   callId: string;
   roomName: string;
   livekitUrl: string;
@@ -35,12 +29,12 @@ interface ActiveCallScreenProps {
   peerId: string;
   startedAt: string;
   connectedAt?: string;
+  mode?: 'audio' | 'video';
 }
 
 function CallActiveUI({
   callId,
   peerId,
-  startedAt,
   connectedAt,
 }: {
   callId: string;
@@ -51,17 +45,12 @@ function CallActiveUI({
   const {
     state,
     setState,
-    isMuted,
-    setMuted,
-    isDeafened,
-    setDeafened,
     peerDisconnected,
     setPeerDisconnected,
-    reset,
   } = useCallStore();
 
   const { data: peerUser } = useUser(peerId);
-  const { isMicrophoneEnabled, localParticipant } = useLocalParticipant();
+  const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
   const peerParticipant = remoteParticipants[0];
   const activeParticipant = peerParticipant || localParticipant;
@@ -112,39 +101,6 @@ function CallActiveUI({
 
     return () => clearInterval(interval);
   }, [connectedAt]);
-
-  const handleToggleMic = async () => {
-    if (!localParticipant) return;
-    const next = !isMicrophoneEnabled;
-    try {
-      await localParticipant.setMicrophoneEnabled(next);
-      setMuted(!next);
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Microphone error',
-        description: err.message || 'Could not toggle microphone',
-      });
-    }
-  };
-
-  const handleToggleSpeaker = () => {
-    setDeafened(!isDeafened);
-  };
-
-  const handleEndCall = async () => {
-    try {
-      await voiceApi.endCall(callId);
-    } catch {
-      // Best-effort
-    }
-    try {
-      room.disconnect();
-    } catch {
-      // Ignore
-    }
-    reset();
-  };
 
   const displayName = peerUser?.name || peerUser?.username || 'Voice Call';
   const initial = (displayName[0] || 'C').toUpperCase();
@@ -211,51 +167,107 @@ function CallActiveUI({
         </p>
       </div>
 
-      {/* Call Controls */}
-      <div className="flex items-center justify-center gap-4 pt-2">
-        {/* Mic Mute Button */}
-        <Button
-          type="button"
-          variant={isMicrophoneEnabled ? 'outline' : 'secondary'}
-          size="icon"
-          className="w-12 h-12 rounded-full shadow-sm"
-          onClick={handleToggleMic}
-          title={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
-        >
-          {isMicrophoneEnabled ? (
-            <Mic className="w-5 h-5 text-foreground" />
-          ) : (
-            <MicOff className="w-5 h-5 text-destructive" />
-          )}
-        </Button>
+      {/* Reusable Call Controls */}
+      <CallControls callId={callId} mode="audio" />
+    </div>
+  );
+}
 
-        {/* End Call Button */}
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon"
-          className="w-14 h-14 rounded-full shadow-md hover:scale-105 transition-transform"
-          onClick={handleEndCall}
-          title="End call"
-        >
-          <PhoneOff className="w-6 h-6" />
-        </Button>
+function VideoCallUI({
+  callId,
+  peerId,
+  connectedAt,
+}: {
+  callId: string;
+  peerId: string;
+  connectedAt?: string;
+}) {
+  const { state, setState, peerDisconnected, setPeerDisconnected } = useCallStore();
+  const { data: peerUser } = useUser(peerId);
+  const room = useRoomContext();
+  const [durationSeconds, setDurationSeconds] = useState(0);
 
-        {/* Speaker Deafen Button */}
-        <Button
-          type="button"
-          variant={isDeafened ? 'secondary' : 'outline'}
-          size="icon"
-          className="w-12 h-12 rounded-full shadow-sm"
-          onClick={handleToggleSpeaker}
-          title={isDeafened ? 'Unmute speaker' : 'Mute speaker'}
-        >
-          {isDeafened ? (
-            <VolumeX className="w-5 h-5 text-destructive" />
-          ) : (
-            <Volume2 className="w-5 h-5 text-foreground" />
+  useEffect(() => {
+    if (!room) return;
+
+    const handleReconnecting = () => {
+      if (state.kind === 'active') {
+        setState({
+          ...state,
+          kind: 'reconnecting',
+        });
+      }
+    };
+
+    const handleReconnected = () => {
+      setPeerDisconnected(false);
+      if (state.kind === 'reconnecting') {
+        setState({
+          ...state,
+          kind: 'active',
+        });
+      }
+    };
+
+    room.on('reconnecting', handleReconnecting);
+    room.on('reconnected', handleReconnected);
+
+    return () => {
+      room.off('reconnecting', handleReconnecting);
+      room.off('reconnected', handleReconnected);
+    };
+  }, [room, state, setState, setPeerDisconnected]);
+
+  useEffect(() => {
+    const startTime = connectedAt ? new Date(connectedAt).getTime() : Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setDurationSeconds(Math.max(0, elapsed));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [connectedAt]);
+
+  const displayName = peerUser?.name || peerUser?.username || 'Video Call';
+  const formattedDuration = `${Math.floor(durationSeconds / 60)}:${(durationSeconds % 60)
+    .toString()
+    .padStart(2, '0')}`;
+
+  const isReconnecting = state.kind === 'reconnecting';
+
+  return (
+    <div className="w-full h-full flex flex-col bg-background text-foreground relative select-none">
+      {/* Top Bar */}
+      <div className="h-14 border-b px-4 flex items-center justify-between bg-card/80 backdrop-blur-md shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div>
+            <h3 className="text-sm font-semibold leading-none">{displayName}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{formattedDuration}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {peerDisconnected && (
+            <span className="text-xs text-amber-500 font-medium animate-pulse">
+              Peer reconnecting...
+            </span>
           )}
-        </Button>
+          {isReconnecting && (
+            <span className="text-xs text-destructive font-medium animate-pulse">
+              Reconnecting...
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Main Video Conference Grid with PiP & Avatar placeholders */}
+      <div className="flex-1 relative overflow-hidden flex flex-col min-h-0 bg-black/90">
+        <VideoConference />
+      </div>
+
+      {/* Bottom Controls */}
+      <div className="py-3 px-4 bg-card/90 backdrop-blur-md border-t flex justify-center shrink-0 z-20">
+        <CallControls callId={callId} mode="video" />
       </div>
     </div>
   );
@@ -269,6 +281,7 @@ export function ActiveCallScreen({
   peerId,
   startedAt,
   connectedAt,
+  mode = 'audio',
 }: ActiveCallScreenProps) {
   const { state, setState, isDeafened, reset } = useCallStore();
 
@@ -278,6 +291,7 @@ export function ActiveCallScreen({
         ...state,
         kind: 'active',
         connectedAt: connectedAt || new Date().toISOString(),
+        mode,
       });
     }
   };
@@ -301,6 +315,7 @@ export function ActiveCallScreen({
           peerId,
           startedAt,
           connectedAt: connectedAt || new Date().toISOString(),
+          mode,
         });
         return;
       } catch {
@@ -315,24 +330,40 @@ export function ActiveCallScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex',
+        mode === 'video'
+          ? 'w-screen h-screen bg-background'
+          : 'items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200'
+      )}
+    >
       <LiveKitRoom
         token={token}
         serverUrl={livekitUrl}
         connect={true}
         audio={true}
-        video={false}
+        video={mode === 'video'}
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
         onError={handleError}
+        className={mode === 'video' ? 'w-full h-full flex flex-col' : undefined}
       >
         <RoomAudioRenderer muted={isDeafened} volume={isDeafened ? 0 : 1} />
-        <CallActiveUI
-          callId={callId}
-          peerId={peerId}
-          startedAt={startedAt}
-          connectedAt={connectedAt}
-        />
+        {mode === 'video' ? (
+          <VideoCallUI
+            callId={callId}
+            peerId={peerId}
+            connectedAt={connectedAt}
+          />
+        ) : (
+          <CallActiveUI
+            callId={callId}
+            peerId={peerId}
+            startedAt={startedAt}
+            connectedAt={connectedAt}
+          />
+        )}
       </LiveKitRoom>
     </div>
   );

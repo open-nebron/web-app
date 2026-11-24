@@ -2,13 +2,19 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, Loader2 } from 'lucide-react';
+import { Phone, Video, Loader2 } from 'lucide-react';
 import { useCallStore } from '@/lib/call-store';
 import { useWsStatus } from '@/hooks/use-ws';
 import { usePresence } from '@/hooks/use-presence';
 import { voiceApi } from '@/lib/voice-api';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CallButtonProps {
   peerUserId: string;
@@ -30,14 +36,14 @@ export function CallButton({ peerUserId, className }: CallButtonProps) {
   const isWsConnected = wsStatus === 'connected';
   const isOffline = presence.status === 'offline';
 
-  let tooltipTitle = 'Start voice call';
+  let tooltipTitle = 'Start call';
   if (!isWsConnected) {
     tooltipTitle = 'Chat disconnected';
   } else if (isOffline) {
     tooltipTitle = 'User is offline';
   }
 
-  const handleCall = async () => {
+  const handleCall = async (mode: 'audio' | 'video' = 'audio') => {
     if (!peerUserId || isStarting) return;
 
     if (!isWsConnected) {
@@ -51,16 +57,18 @@ export function CallButton({ peerUserId, className }: CallButtonProps) {
 
     try {
       setIsStarting(true);
-      const res = await voiceApi.startCall(peerUserId);
+      const res = await voiceApi.startCall(peerUserId, mode);
       setState({
         kind: 'outgoing',
         callId: res.call.id,
         calleeId: peerUserId,
         roomName: res.call.roomName,
         startedAt: res.call.startedAt || new Date().toISOString(),
+        mode,
       });
-    } catch (err: any) {
-      const status = err.status;
+    } catch (err: unknown) {
+      const errorObj = err as { status?: number; message?: string };
+      const status = errorObj.status;
       if (status === 409) {
         toast({
           variant: 'destructive',
@@ -71,7 +79,7 @@ export function CallButton({ peerUserId, className }: CallButtonProps) {
         toast({
           variant: 'destructive',
           title: 'Cannot place call',
-          description: err.message || 'Call was declined by relationship settings.',
+          description: errorObj.message || 'Call was declined by relationship settings.',
         });
       } else if (status === 503) {
         toast({
@@ -83,7 +91,7 @@ export function CallButton({ peerUserId, className }: CallButtonProps) {
         toast({
           variant: 'destructive',
           title: 'Could not start call',
-          description: err.message || 'Failed to initiate voice call.',
+          description: errorObj.message || 'Failed to initiate call.',
         });
       }
     } finally {
@@ -92,24 +100,43 @@ export function CallButton({ peerUserId, className }: CallButtonProps) {
   };
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className={cn(
-        'h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors',
-        className
-      )}
-      onClick={handleCall}
-      disabled={isStarting || !isWsConnected}
-      title={tooltipTitle}
-      aria-label="Start voice call"
-    >
-      {isStarting ? (
-        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-      ) : (
-        <Phone className="w-4 h-4" />
-      )}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors',
+            className
+          )}
+          disabled={isStarting || !isWsConnected}
+          title={tooltipTitle}
+          aria-label="Start call"
+        >
+          {isStarting ? (
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          ) : (
+            <Phone className="w-4 h-4" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem
+          onClick={() => handleCall('audio')}
+          className="gap-2 cursor-pointer"
+        >
+          <Phone className="w-4 h-4 text-emerald-500" />
+          <span>Voice call</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => handleCall('video')}
+          className="gap-2 cursor-pointer"
+        >
+          <Video className="w-4 h-4 text-primary" />
+          <span>Video call</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

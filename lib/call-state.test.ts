@@ -152,4 +152,94 @@ describe('Call State Machine (useCallStore)', () => {
       expect(restoredState.connectedAt).toBe(connectedAt);
     }
   });
+
+  // 4. Video call preserves mode='video' across transitions
+  it('video call preserves mode="video" across outgoing, connecting, active, and reconnecting', () => {
+    const store = useCallStore.getState();
+
+    // Outgoing video call
+    store.setState({
+      kind: 'outgoing',
+      callId: 'call-video-1',
+      calleeId: 'user-bob',
+      roomName: 'room-video-1',
+      startedAt: '2026-11-24T12:00:00Z',
+      mode: 'video',
+    });
+
+    const outgoingState = useCallStore.getState().state;
+    expect(outgoingState.kind).toBe('outgoing');
+    if (outgoingState.kind === 'outgoing') {
+      expect(outgoingState.mode).toBe('video');
+    }
+
+    // Callee accepts -> connecting with mode='video'
+    store.setState({
+      kind: 'connecting',
+      callId: 'call-video-1',
+      roomName: 'room-video-1',
+      livekitUrl: 'ws://localhost:7880',
+      token: 'jwt-video',
+      peerId: 'user-bob',
+      startedAt: '2026-11-24T12:00:00Z',
+      mode: 'video',
+    });
+
+    const connectingState = useCallStore.getState().state;
+    expect(connectingState.kind).toBe('connecting');
+    if (connectingState.kind === 'connecting') {
+      expect(connectingState.mode).toBe('video');
+    }
+
+    // Room connects -> active with mode='video'
+    store.setState({
+      kind: 'active',
+      callId: 'call-video-1',
+      roomName: 'room-video-1',
+      livekitUrl: 'ws://localhost:7880',
+      token: 'jwt-video',
+      peerId: 'user-bob',
+      startedAt: '2026-11-24T12:00:00Z',
+      connectedAt: '2026-11-24T12:00:03Z',
+      mode: 'video',
+    });
+
+    const activeState = useCallStore.getState().state;
+    expect(activeState.kind).toBe('active');
+    if (activeState.kind === 'active') {
+      expect(activeState.mode).toBe('video');
+    }
+
+    // Reconnecting preserves mode='video'
+    store.setState({
+      ...activeState,
+      kind: 'reconnecting',
+    });
+
+    const reconnectingState = useCallStore.getState().state;
+    expect(reconnectingState.kind).toBe('reconnecting');
+    if (reconnectingState.kind === 'reconnecting') {
+      expect(reconnectingState.mode).toBe('video');
+    }
+  });
+
+  // 5. Incoming video call preserves mode='video'
+  it('incoming video call preserves mode="video"', () => {
+    const store = useCallStore.getState();
+
+    store.setState({
+      kind: 'incoming',
+      callId: 'call-video-2',
+      callerId: 'user-charlie',
+      roomName: 'room-video-2',
+      startedAt: '2026-11-24T12:00:00Z',
+      mode: 'video',
+    });
+
+    const incomingState = useCallStore.getState().state;
+    expect(incomingState.kind).toBe('incoming');
+    if (incomingState.kind === 'incoming') {
+      expect(incomingState.mode).toBe('video');
+    }
+  });
 });

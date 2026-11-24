@@ -15,6 +15,7 @@ interface IncomingCallModalProps {
   callerId: string;
   roomName: string;
   startedAt: string;
+  mode?: 'audio' | 'video';
 }
 
 export function IncomingCallModal({
@@ -22,6 +23,7 @@ export function IncomingCallModal({
   callerId,
   roomName,
   startedAt,
+  mode = 'audio',
 }: IncomingCallModalProps) {
   const { setState, reset } = useCallStore();
   const { data: caller, isLoading } = useUser(callerId);
@@ -67,12 +69,14 @@ export function IncomingCallModal({
         token: res.calleeToken,
         peerId: callerId,
         startedAt: res.call?.startedAt || startedAt,
+        mode: res.call?.mode || mode,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Call may have already ended';
       toast({
         variant: 'destructive',
         title: 'Could not accept call',
-        description: err.message || 'Call may have already ended',
+        description: message,
       });
       ringtone.stop();
       reset();
@@ -116,7 +120,7 @@ export function IncomingCallModal({
             {caller?.username ? `@${caller.username}` : ''}
           </p>
           <p className="text-xs font-medium text-primary animate-pulse pt-1">
-            Incoming voice call... ({ringSeconds}s)
+            Incoming {mode === 'video' ? 'video' : 'voice'} call... ({ringSeconds}s)
           </p>
         </div>
 

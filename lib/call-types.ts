@@ -1,3 +1,5 @@
+export type CallMode = 'audio' | 'video';
+
 export type CallState =
   | { kind: 'idle' }
   | {
@@ -6,6 +8,7 @@ export type CallState =
       callerId: string;
       roomName: string;
       startedAt: string;
+      mode?: CallMode;
     }
   | {
       kind: 'outgoing';
@@ -13,6 +16,7 @@ export type CallState =
       calleeId: string;
       roomName: string;
       startedAt: string;
+      mode?: CallMode;
     }
   | {
       kind: 'connecting';
@@ -23,6 +27,7 @@ export type CallState =
       peerId: string;
       startedAt: string;
       connectedAt?: string;
+      mode?: CallMode;
     }
   | {
       kind: 'active';
@@ -33,6 +38,7 @@ export type CallState =
       peerId: string;
       startedAt: string;
       connectedAt: string;
+      mode?: CallMode;
     }
   | {
       kind: 'reconnecting';
@@ -43,6 +49,7 @@ export type CallState =
       peerId: string;
       startedAt: string;
       connectedAt: string;
+      mode?: CallMode;
     }
   | { kind: 'ended'; callId: string; reason: string; duration: number };
 
@@ -58,6 +65,7 @@ export interface CallRecord {
   durationSeconds?: number | null;
   endedBy?: string | null;
   endReason?: string | null;
+  mode?: CallMode;
 }
 
 export interface StartCallResponse {

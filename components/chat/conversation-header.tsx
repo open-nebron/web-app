@@ -14,9 +14,11 @@ import { BlockUserMenu } from '@/components/users/block-user-menu';
 import { CallButton } from '@/components/call/call-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Conversation } from '@/lib/chat-types';
-import { ArrowLeft, Phone, Users, Settings, ShieldAlert, Search } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Users, Settings, ShieldAlert, Search } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
+import { voiceApi } from '@/lib/voice-api';
+import { useCallStore } from '@/lib/call-store';
 import { useSearchStore } from '@/lib/search-store';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
@@ -159,6 +161,39 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
           {/* Voice call button (1:1 only) */}
           {isDirect && conversation.peerUserId && (
             <CallButton peerUserId={conversation.peerUserId} />
+          )}
+
+          {/* Start video call option in conversation header */}
+          {isDirect && conversation.peerUserId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                try {
+                  const res = await voiceApi.startCall(conversation.peerUserId!, 'video');
+                  useCallStore.getState().setState({
+                    kind: 'outgoing',
+                    callId: res.call.id,
+                    calleeId: conversation.peerUserId!,
+                    roomName: res.call.roomName,
+                    startedAt: res.call.startedAt || new Date().toISOString(),
+                    mode: 'video',
+                  });
+                } catch (err: unknown) {
+                  const errorObj = err as { status?: number; message?: string };
+                  toast({
+                    variant: 'destructive',
+                    title: 'Could not start video call',
+                    description: errorObj.message || 'Failed to initiate video call.',
+                  });
+                }
+              }}
+              title="Start video call"
+              aria-label="Start video call"
+            >
+              <Video className="w-4 h-4" />
+            </Button>
           )}
 
           {/* Settings / Block menu */}

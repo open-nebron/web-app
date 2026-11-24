@@ -20,6 +20,7 @@ export function CallOverlay() {
         callerId={state.callerId}
         roomName={state.roomName}
         startedAt={state.startedAt}
+        mode={state.mode || 'audio'}
       />
     );
   }
@@ -31,6 +32,7 @@ export function CallOverlay() {
         calleeId={state.calleeId}
         roomName={state.roomName}
         startedAt={state.startedAt}
+        mode={state.mode || 'audio'}
       />
     );
   }
@@ -49,6 +51,7 @@ export function CallOverlay() {
         peerId={state.peerId}
         startedAt={state.startedAt}
         connectedAt={state.connectedAt}
+        mode={state.mode || 'audio'}
       />
     );
   }
