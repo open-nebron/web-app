@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -131,7 +131,7 @@ export function GroupSettingsDialog({
     addMembersMutation.mutate(userIds);
   };
 
-  const existingMemberIds = members.map((m) => m.userId);
+  const existingMemberIds = useMemo(() => members.map((m) => m.userId), [members]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

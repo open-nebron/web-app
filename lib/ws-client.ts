@@ -104,6 +104,13 @@ export class WsClient {
   }
 
   public connect(token: string): void {
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) &&
+      this.token === token
+    ) {
+      return;
+    }
     this.token = token;
     this.isExplicitlyClosed = false;
     this.hasTriedTokenRefreshOn4401 = false;

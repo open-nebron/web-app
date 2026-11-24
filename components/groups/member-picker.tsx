@@ -15,20 +15,24 @@ interface MemberPickerProps {
   excludeUserIds?: string[];
 }
 
+const EMPTY_EXCLUDE: string[] = [];
+
 export function MemberPicker({
   selectedUsers,
   onSelectedChange,
-  excludeUserIds = [],
+  excludeUserIds = EMPTY_EXCLUDE,
 }: MemberPickerProps) {
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PublicUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const excludeKey = (excludeUserIds || []).join(',');
+
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
-      setIsSearching(false);
+      setResults((prev) => (prev.length === 0 ? prev : []));
+      setIsSearching((prev) => (prev ? false : prev));
       return;
     }
 
@@ -36,10 +40,11 @@ export function MemberPicker({
       try {
         setIsSearching(true);
         const users = await chatApi.searchUsers(query.trim());
+        const excludeSet = new Set(excludeUserIds);
         const filtered = users.filter(
           (u) =>
             u.userId !== currentUserId &&
-            !excludeUserIds.includes(u.userId)
+            !excludeSet.has(u.userId)
         );
         setResults(filtered);
       } catch (err) {
@@ -50,7 +55,7 @@ export function MemberPicker({
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [query, currentUserId, excludeUserIds]);
+  }, [query, currentUserId, excludeKey]);
 
   const toggleUser = (user: PublicUser) => {
     const isSelected = selectedUsers.some((u) => u.userId === user.userId);
