@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ConversationList } from '@/components/chat/conversation-list';
 import { ConversationHeader } from '@/components/chat/conversation-header';
@@ -47,15 +47,27 @@ export default function ConversationPage() {
     return conversations.find((c) => c.id === conversationId);
   }, [conversations, conversationId]);
 
-  // Mark read when entering conversation
+  // Track the latest message ID that was already marked as read
+  const lastMarkedReadIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (messages.length > 0) {
-      const latest = messages[messages.length - 1];
-      if (latest && latest.id) {
-        markAsRead(latest.id);
-      }
+    lastMarkedReadIdRef.current = null;
+  }, [conversationId]);
+
+  // Mark read when entering conversation or when new peer messages arrive
+  useEffect(() => {
+    if (messages.length === 0) return;
+    // Find the latest message sent by another user that needs reading
+    const latestPeerMsg = [...messages].reverse().find((m) => m.senderId !== currentUserId);
+    if (!latestPeerMsg?.id) return;
+
+    if (lastMarkedReadIdRef.current === latestPeerMsg.id) {
+      return;
     }
-  }, [conversationId, messages, markAsRead]);
+
+    lastMarkedReadIdRef.current = latestPeerMsg.id;
+    markAsRead(latestPeerMsg.id);
+  }, [conversationId, messages, currentUserId, markAsRead]);
 
   // Handle retry
   const handleRetry = (msg: ChatMessage) => {

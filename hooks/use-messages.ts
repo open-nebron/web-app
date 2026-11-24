@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
 import type { ChatMessage, WSMessageNewPayload, WSMessageReadPayload } from '@/lib/chat-types';
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/auth-store';
 export function useMessages(conversationId: string) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.userId);
-  const { sendRead } = useWsClient();
+  const { sendRead, status } = useWsClient();
 
   const queryKey = useMemo(() => ['messages', conversationId], [conversationId]);
 
@@ -134,17 +134,26 @@ export function useMessages(conversationId: string) {
   });
 
   // Mark conversation as read helper
-  const markAsRead = async (messageId?: string) => {
-    if (!conversationId) return;
-    try {
-      if (messageId) {
-        await sendRead(conversationId, messageId);
+  const markAsRead = useCallback(
+    async (messageId?: string) => {
+      if (!conversationId || !messageId) return;
+      try {
+        if (status === 'connected') {
+          await sendRead(conversationId, messageId);
+        } else {
+          await chatApi.markReadHttp(conversationId, messageId);
+        }
+      } catch {
+        // Fallback to HTTP if WS fails
+        try {
+          await chatApi.markReadHttp(conversationId, messageId);
+        } catch {
+          // Best-effort
+        }
       }
-      await chatApi.markReadHttp(conversationId, messageId);
-    } catch {
-      // Best-effort
-    }
-  };
+    },
+    [conversationId, sendRead, status]
+  );
 
   return {
     ...query,
