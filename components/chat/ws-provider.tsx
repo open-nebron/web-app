@@ -41,19 +41,25 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       setWsStatus(status);
     });
 
-    const unsubTyping = client.on('typing.update', (payload: WSTypingPayload) => {
+    const unsubTyping = client.on('typing.update', (data: any) => {
+      const payload: WSTypingPayload = data?.payload ?? data;
       if (!payload?.conversationId || !payload?.userId) return;
-      if (payload.isTyping) {
+      const isTyping = Boolean(payload.typing ?? payload.isTyping);
+      if (isTyping) {
         addTyping(payload.conversationId, payload.userId);
       } else {
         clearTyping(payload.conversationId, payload.userId);
       }
     });
 
-    const unsubPresence = client.on('presence.update', (payload: WSPresencePayload) => {
+    const unsubPresence = client.on('presence.update', (data: any) => {
+      const payload: WSPresencePayload = data?.payload ?? data;
       if (!payload?.userId) return;
+      const isOnline = payload.online !== undefined
+        ? payload.online
+        : payload.status === 'online';
       setPresence(payload.userId, {
-        status: payload.status,
+        status: isOnline ? 'online' : 'offline',
         lastSeenAt: payload.lastSeenAt,
       });
     });

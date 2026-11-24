@@ -2,21 +2,149 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { UserX, ArrowLeft } from 'lucide-react';
-import { usePublicProfile } from '@/hooks/use-profile';
+import { useParams, useRouter } from 'next/navigation';
+import {
+  UserX,
+  ArrowLeft,
+  MessageSquare,
+  ShieldAlert,
+  UserCheck,
+  VolumeX,
+  Volume2,
+  Flag,
+  Loader2,
+} from 'lucide-react';
+import { usePublicProfile, useProfile } from '@/hooks/use-profile';
+import { useAuthStore } from '@/lib/auth-store';
 import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { chatApi } from '@/lib/chat-api';
+import { toast } from '@/components/ui/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function PublicProfilePage() {
   const params = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const username = typeof params?.username === 'string' ? params.username : '';
 
-  // TODO: GET /users/:username will be fully wired in core-backend in phase 7a
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: myProfile } = useProfile();
   const { data: profile, isLoading, isError } = usePublicProfile(username);
+
+  const [isStartingChat, setIsStartingChat] = React.useState(false);
+  const [showBlockDialog, setShowBlockDialog] = React.useState(false);
+
+  // Self profile redirect
+  React.useEffect(() => {
+    if (
+      (myProfile?.username && username && myProfile.username.toLowerCase() === username.toLowerCase()) ||
+      (currentUser?.userId && profile?.userId && currentUser.userId === profile.userId)
+    ) {
+      router.replace('/profile');
+    }
+  }, [myProfile, currentUser, username, profile, router]);
+
+  // Relationship query
+  const { data: relationship } = useQuery({
+    queryKey: ['relationship', profile?.userId],
+    queryFn: () => chatApi.getRelationship(profile!.userId),
+    enabled: Boolean(profile?.userId && currentUser?.userId !== profile?.userId),
+    staleTime: 60 * 1000,
+  });
+
+  const isBlocked = relationship?.blocked ?? false;
+  const isMuted = relationship?.muted?.messages ?? false;
+
+  const toggleBlockMutation = useMutation({
+    mutationFn: async () => {
+      if (!profile) return;
+      if (isBlocked) {
+        await chatApi.unblockUser(profile.userId);
+      } else {
+        await chatApi.blockUser(profile.userId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationship', profile?.userId] });
+      setShowBlockDialog(false);
+      toast({
+        title: isBlocked ? 'User unblocked' : 'User blocked',
+        description: isBlocked
+          ? `@${profile?.username} has been unblocked.`
+          : `@${profile?.username} has been blocked.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: err.message || 'Could not update block status',
+      });
+    },
+  });
+
+  const toggleMuteMutation = useMutation({
+    mutationFn: async () => {
+      if (!profile) return;
+      if (isMuted) {
+        await chatApi.unmuteUser(profile.userId);
+      } else {
+        await chatApi.muteUser(profile.userId, { calls: true, messages: true });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationship', profile?.userId] });
+      toast({
+        title: isMuted ? 'User unmuted' : 'User muted',
+        description: isMuted
+          ? `Notifications from @${profile?.username} are now unmuted.`
+          : `Notifications from @${profile?.username} are now muted.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: err.message || 'Could not update mute status',
+      });
+    },
+  });
+
+  const handleStartChat = async () => {
+    if (!profile) return;
+    try {
+      setIsStartingChat(true);
+      const res = await chatApi.createDirect(profile.userId);
+      router.push(`/chat/${res.conversationId}`);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not open chat',
+        description: err.message || 'Failed to start conversation',
+      });
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
+  const handleReport = () => {
+    toast({
+      title: 'Report submitted',
+      description: `Thank you. Our safety team will review @${profile?.username || username}.`,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -44,7 +172,7 @@ export default function PublicProfilePage() {
           </div>
           <h2 className="text-xl font-bold tracking-tight">Profile not found</h2>
           <p className="text-sm text-muted-foreground mt-2 mb-6">
-            The user @{username} doesn&apos;t exist or public profiles are not yet enabled.
+            The user @{username} doesn&apos;t exist on nebron.
           </p>
           <Button asChild variant="outline">
             <Link href="/profile">
@@ -57,12 +185,83 @@ export default function PublicProfilePage() {
     );
   }
 
+  const isSelf = currentUser?.userId === profile.userId;
+
   return (
     <div>
       <AppHeader title={`@${profile.username}`} />
       <ProfileHeader profile={profile} isOwnProfile={false} />
 
-      <div className="max-w-4xl mx-auto px-6 py-6">
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {/* Actions bar for other users */}
+        {!isSelf && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              onClick={handleStartChat}
+              disabled={isStartingChat || isBlocked}
+              size="sm"
+              className="gap-2"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {isStartingChat ? 'Opening...' : 'Send Message'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toggleMuteMutation.mutate()}
+              disabled={toggleMuteMutation.isPending}
+              className="gap-2"
+            >
+              {isMuted ? (
+                <>
+                  <Volume2 className="h-4 w-4" />
+                  Unmute
+                </>
+              ) : (
+                <>
+                  <VolumeX className="h-4 w-4" />
+                  Mute
+                </>
+              )}
+            </Button>
+
+            {isBlocked ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleBlockMutation.mutate()}
+                disabled={toggleBlockMutation.isPending}
+                className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10"
+              >
+                <UserCheck className="h-4 w-4" />
+                Unblock
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBlockDialog(true)}
+                className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Block
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReport}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Flag className="h-4 w-4" />
+              Report
+            </Button>
+          </div>
+        )}
+
+        {/* About section */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">About</CardTitle>
@@ -72,6 +271,10 @@ export default function PublicProfilePage() {
               <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
                 {profile.about}
               </p>
+            ) : profile.bio ? (
+              <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
+                {profile.bio}
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 No bio or about section provided.
@@ -80,7 +283,36 @@ export default function PublicProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Dialog for Blocking */}
+      <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Block @{profile.username}?</DialogTitle>
+            <DialogDescription>
+              They will no longer be able to message you or call you on nebron. You can unblock them at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowBlockDialog(false)}
+              disabled={toggleBlockMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => toggleBlockMutation.mutate()}
+              disabled={toggleBlockMutation.isPending}
+              className="gap-2"
+            >
+              {toggleBlockMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Block User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

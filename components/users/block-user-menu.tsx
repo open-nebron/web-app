@@ -9,7 +9,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ShieldAlert, VolumeX, Volume2, UserCheck, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  MoreHorizontal,
+  ShieldAlert,
+  VolumeX,
+  Volume2,
+  PhoneOff,
+  Phone,
+  UserCheck,
+  Loader2,
+  MessageSquareOff,
+} from 'lucide-react';
 import { chatApi } from '@/lib/chat-api';
 import { toast } from '@/components/ui/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +39,7 @@ interface BlockUserMenuProps {
 
 export function BlockUserMenu({ userId, userName = 'user' }: BlockUserMenuProps) {
   const queryClient = useQueryClient();
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
 
   const { data: relationship, isLoading } = useQuery({
     queryKey: ['relationship', userId],
@@ -29,9 +48,64 @@ export function BlockUserMenu({ userId, userName = 'user' }: BlockUserMenuProps)
   });
 
   const isBlocked = relationship?.blocked ?? false;
-  const isMuted = relationship?.muted?.messages ?? false;
+  const isMutedMessages = relationship?.muted?.messages ?? false;
+  const isMutedCalls = relationship?.muted?.calls ?? false;
 
-  const toggleBlockMutation = useMutation({
+  const toggleMuteMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const newMessages = !isMutedMessages;
+      if (!newMessages && !isMutedCalls) {
+        await chatApi.unmuteUser(userId);
+      } else {
+        await chatApi.muteUser(userId, { messages: newMessages, calls: isMutedCalls });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationship', userId] });
+      toast({
+        title: isMutedMessages ? 'Messages unmuted' : 'Messages muted',
+        description: isMutedMessages
+          ? `Message notifications from ${userName} are now unmuted.`
+          : `Message notifications from ${userName} are now muted.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: err.message || 'Could not update mute status',
+      });
+    },
+  });
+
+  const toggleMuteCallsMutation = useMutation({
+    mutationFn: async () => {
+      const newCalls = !isMutedCalls;
+      if (!newCalls && !isMutedMessages) {
+        await chatApi.unmuteUser(userId);
+      } else {
+        await chatApi.muteUser(userId, { messages: isMutedMessages, calls: newCalls });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationship', userId] });
+      toast({
+        title: isMutedCalls ? 'Calls unmuted' : 'Calls muted',
+        description: isMutedCalls
+          ? `Call notifications from ${userName} are now unmuted.`
+          : `Call notifications from ${userName} are now muted.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: err.message || 'Could not update call mute status',
+      });
+    },
+  });
+
+  const blockMutation = useMutation({
     mutationFn: async () => {
       if (isBlocked) {
         await chatApi.unblockUser(userId);
@@ -41,6 +115,7 @@ export function BlockUserMenu({ userId, userName = 'user' }: BlockUserMenuProps)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['relationship', userId] });
+      setShowBlockDialog(false);
       toast({
         title: isBlocked ? 'User unblocked' : 'User blocked',
         description: isBlocked
@@ -57,79 +132,112 @@ export function BlockUserMenu({ userId, userName = 'user' }: BlockUserMenuProps)
     },
   });
 
-  const toggleMuteMutation = useMutation({
-    mutationFn: async () => {
-      if (isMuted) {
-        await chatApi.unmuteUser(userId);
-      } else {
-        await chatApi.muteUser(userId, { calls: true, messages: true });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['relationship', userId] });
-      toast({
-        title: isMuted ? 'User unmuted' : 'User muted',
-        description: isMuted
-          ? `Notifications from ${userName} are now unmuted.`
-          : `Notifications from ${userName} are now muted.`,
-      });
-    },
-    onError: (err: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Action failed',
-        description: err.message || 'Could not update mute status',
-      });
-    },
-  });
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-          <MoreHorizontal className="w-4 h-4" />
-          <span className="sr-only">User options</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem
-          onClick={() => toggleMuteMutation.mutate()}
-          disabled={isLoading || toggleMuteMutation.isPending}
-          className="gap-2 text-xs cursor-pointer"
-        >
-          {isMuted ? (
-            <>
-              <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Unmute notifications</span>
-            </>
-          ) : (
-            <>
-              <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Mute notifications</span>
-            </>
-          )}
-        </DropdownMenuItem>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <MoreHorizontal className="w-4 h-4" />
+            <span className="sr-only">User options</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {/* Mute Messages */}
+          <DropdownMenuItem
+            onClick={() => toggleMuteMessagesMutation.mutate()}
+            disabled={isLoading || toggleMuteMessagesMutation.isPending}
+            className="gap-2 text-xs cursor-pointer"
+          >
+            {isMutedMessages ? (
+              <>
+                <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Unmute messages</span>
+              </>
+            ) : (
+              <>
+                <MessageSquareOff className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Mute messages</span>
+              </>
+            )}
+          </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
+          {/* Mute Calls */}
+          <DropdownMenuItem
+            onClick={() => toggleMuteCallsMutation.mutate()}
+            disabled={isLoading || toggleMuteCallsMutation.isPending}
+            className="gap-2 text-xs cursor-pointer"
+          >
+            {isMutedCalls ? (
+              <>
+                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Unmute calls</span>
+              </>
+            ) : (
+              <>
+                <PhoneOff className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Mute calls</span>
+              </>
+            )}
+          </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onClick={() => toggleBlockMutation.mutate()}
-          disabled={isLoading || toggleBlockMutation.isPending}
-          className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-        >
-          {isBlocked ? (
-            <>
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Unblock user</span>
-            </>
-          ) : (
-            <>
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Block user</span>
-            </>
-          )}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+
+          {/* Block User */}
+          <DropdownMenuItem
+            onClick={() => {
+              if (isBlocked) {
+                blockMutation.mutate();
+              } else {
+                setShowBlockDialog(true);
+              }
+            }}
+            disabled={isLoading || blockMutation.isPending}
+            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+          >
+            {isBlocked ? (
+              <>
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Unblock user</span>
+              </>
+            ) : (
+              <>
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Block user</span>
+              </>
+            )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Confirmation Dialog for Block User */}
+      <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Block {userName}?</DialogTitle>
+            <DialogDescription>
+              They will no longer be able to send you messages or call you on nebron. You can unblock them at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowBlockDialog(false)}
+              disabled={blockMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => blockMutation.mutate()}
+              disabled={blockMutation.isPending}
+              className="gap-2"
+            >
+              {blockMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Block User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

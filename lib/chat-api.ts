@@ -112,6 +112,12 @@ export const chatApi = {
     });
   },
 
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    await apiFetch(`/api/chat/conversations/${conversationId}/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Users & Profiles Discovery
   async searchUsers(q: string, limit = 20): Promise<PublicUser[]> {
     if (!q || !q.trim()) return [];

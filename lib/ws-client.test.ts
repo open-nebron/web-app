@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { WsClient } from './ws-client';
 
 class MockWebSocket {
@@ -8,6 +8,7 @@ class MockWebSocket {
   public static CLOSING = 2;
   public static CLOSED = 3;
 
+  public url: string;
   public readyState: number = 0; // 0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED
   public onopen: (() => void) | null = null;
   public onclose: ((event: any) => void) | null = null;

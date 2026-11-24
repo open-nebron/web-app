@@ -1,23 +1,63 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { isToday, isYesterday, format } from 'date-fns';
 import { voiceApi } from '@/lib/voice-api';
 import { useAuthStore } from '@/lib/auth-store';
 import { CallHistoryRow } from '@/components/call/call-history-row';
 import { Phone, PhoneCall, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import type { CallRecord } from '@/lib/call-types';
+
+interface DayGroup {
+  dateLabel: string;
+  calls: CallRecord[];
+}
 
 export default function CallsPage() {
   const currentUserId = useAuthStore((s) => s.user?.userId);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['call-history'],
-    queryFn: () => voiceApi.getCallHistory({ limit: 50 }),
+    queryFn: () => voiceApi.getCallHistory({ limit: 30 }),
   });
 
   const calls = data?.data || [];
+
+  // Group calls by day
+  const groupedCalls = useMemo<DayGroup[]>(() => {
+    if (!calls.length) return [];
+
+    const groups: Map<string, CallRecord[]> = new Map();
+
+    for (const call of calls) {
+      let label = 'Earlier';
+      try {
+        const d = new Date(call.startedAt);
+        if (isToday(d)) {
+          label = 'Today';
+        } else if (isYesterday(d)) {
+          label = 'Yesterday';
+        } else {
+          label = format(d, 'MMMM d, yyyy');
+        }
+      } catch {
+        label = 'Earlier';
+      }
+
+      if (!groups.has(label)) {
+        groups.set(label, []);
+      }
+      groups.get(label)!.push(call);
+    }
+
+    return Array.from(groups.entries()).map(([dateLabel, callsInGroup]) => ({
+      dateLabel,
+      calls: callsInGroup,
+    }));
+  }, [calls]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
@@ -26,7 +66,7 @@ export default function CallsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Voice Calls</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            View your recent incoming and outgoing voice calls.
+            View your recent incoming and outgoing voice calls on nebron.
           </p>
         </div>
         <Link href="/chat">
@@ -73,14 +113,23 @@ export default function CallsPage() {
         </div>
       )}
 
-      {!isLoading && !isError && calls.length > 0 && (
-        <div className="space-y-2.5">
-          {calls.map((call) => (
-            <CallHistoryRow
-              key={call.id}
-              call={call}
-              currentUserId={currentUserId || ''}
-            />
+      {!isLoading && !isError && groupedCalls.length > 0 && (
+        <div className="space-y-6">
+          {groupedCalls.map((group) => (
+            <div key={group.dateLabel} className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                {group.dateLabel}
+              </h3>
+              <div className="space-y-2">
+                {group.calls.map((call) => (
+                  <CallHistoryRow
+                    key={call.id}
+                    call={call}
+                    currentUserId={currentUserId || ''}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

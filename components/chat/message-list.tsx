@@ -17,6 +17,7 @@ interface MessageListProps {
   onLoadMore?: () => void;
   onRetry?: (message: ChatMessage) => void;
   onMarkRead?: (messageId: string) => void;
+  onDelete?: (messageId: string) => Promise<void> | void;
 }
 
 interface ClusteredGroup {
@@ -35,6 +36,7 @@ export function MessageList({
   onLoadMore,
   onRetry,
   onMarkRead,
+  onDelete,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -209,6 +211,7 @@ export function MessageList({
               isSelf={item.group.isSelf}
               isGroupChat={isGroupChat}
               onRetry={onRetry}
+              onDelete={onDelete}
             />
           );
         })}

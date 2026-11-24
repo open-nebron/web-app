@@ -6,6 +6,14 @@ import { Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import { coreApi } from '@/lib/api';
 import { useProfile, PROFILE_QUERY_KEY } from '@/hooks/use-profile';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { normalizeStorageUrl } from '@/lib/utils';
 
@@ -17,6 +25,7 @@ export function BannerUploader() {
   const { data: profile } = useProfile();
   const [isUploading, setIsUploading] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -102,6 +111,7 @@ export function BannerUploader() {
       await coreApi.deleteBanner();
       await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
       setPreviewUrl(null);
+      setShowConfirmDelete(false);
       toast({
         title: 'Banner removed',
         description: 'Your profile banner has been reset.',
@@ -172,7 +182,7 @@ export function BannerUploader() {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setShowConfirmDelete(true)}
               loading={isDeleting}
               disabled={isUploading || isDeleting}
               className="text-destructive hover:text-destructive"
@@ -187,6 +197,36 @@ export function BannerUploader() {
           PNG, JPEG, or WebP. Max 10MB.
         </p>
       </div>
+
+      {/* Confirmation Dialog for Banner Removal */}
+      <Dialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove banner?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove your profile banner? It will be replaced with the default gradient.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDelete(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Remove Banner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

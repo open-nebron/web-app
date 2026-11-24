@@ -113,14 +113,16 @@ export interface WSMessageReadPayload {
 export interface WSTypingUpdatePayload {
   conversationId: string;
   userId: string;
-  isTyping: boolean;
+  typing?: boolean;
+  isTyping?: boolean;
 }
 
 export type WSTypingPayload = WSTypingUpdatePayload;
 
 export interface WSPresenceUpdatePayload {
   userId: string;
-  status: 'online' | 'offline';
+  status?: 'online' | 'offline';
+  online?: boolean;
   lastSeenAt?: string;
 }
 

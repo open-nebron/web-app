@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { PresenceDot } from './presence-dot';
 import { useUser } from '@/hooks/use-user';
 import { usePresence } from '@/hooks/use-presence';
-import { Users } from 'lucide-react';
+import { Users, BellOff } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { chatApi } from '@/lib/chat-api';
 import { cn } from '@/lib/utils';
 
 interface ConversationItemProps {
@@ -33,6 +35,15 @@ export function ConversationItem({
 
   const avatarUrl = isDirect ? peerUser?.avatarUrl : undefined;
   const initial = (title[0] || 'C').toUpperCase();
+
+  const { data: relationship } = useQuery({
+    queryKey: ['relationship', conversation.peerUserId],
+    queryFn: () => chatApi.getRelationship(conversation.peerUserId!),
+    enabled: Boolean(isDirect && conversation.peerUserId),
+    staleTime: 60 * 1000,
+  });
+
+  const isMuted = Boolean(relationship?.muted?.messages || relationship?.muted?.calls);
 
   // Format timestamp of last message
   let formattedTime = '';
@@ -81,7 +92,12 @@ export function ConversationItem({
       {/* Info column */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1 mb-1">
-          <h4 className="text-sm font-semibold truncate leading-tight">{title}</h4>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h4 className="text-sm font-semibold truncate leading-tight">{title}</h4>
+            {isMuted && (
+              <BellOff className="w-3 h-3 text-muted-foreground/60 shrink-0" aria-label="Muted" />
+            )}
+          </div>
           {formattedTime && (
             <span className="text-[11px] text-muted-foreground shrink-0 font-normal">
               {formattedTime}

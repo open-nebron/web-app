@@ -102,16 +102,27 @@ export function UserPopover({ userId, children }: UserPopoverProps) {
 
             <div className="flex items-center gap-2 pt-1 border-t">
               {!isSelf ? (
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="w-full gap-1.5 h-8 text-xs"
-                  onClick={handleStartChat}
-                  disabled={isStartingChat}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  {isStartingChat ? 'Opening...' : 'Send Message'}
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="flex-1 gap-1.5 h-8 text-xs"
+                    onClick={handleStartChat}
+                    disabled={isStartingChat}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {isStartingChat ? 'Opening...' : 'Send Message'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-8 text-xs"
+                    asChild
+                    onClick={() => setOpen(false)}
+                  >
+                    <Link href={`/${user?.username || ''}`}>View Profile</Link>
+                  </Button>
+                </>
               ) : (
                 <Button
                   size="sm"

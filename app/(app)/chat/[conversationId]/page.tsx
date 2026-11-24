@@ -11,6 +11,8 @@ import { useConversations } from '@/hooks/use-conversations';
 import { useMessages } from '@/hooks/use-messages';
 import { useSendMessage } from '@/hooks/use-send-message';
 import { useAuthStore } from '@/lib/auth-store';
+import { useQuery } from '@tanstack/react-query';
+import { chatApi } from '@/lib/chat-api';
 import { useChatStore } from '@/lib/chat-store';
 import { Loader2 } from 'lucide-react';
 import type { ChatMessage, Conversation } from '@/lib/chat-types';
@@ -30,6 +32,7 @@ export default function ConversationPage() {
     hasNextPage,
     fetchNextPage,
     markAsRead,
+    deleteMessage,
   } = useMessages(conversationId);
 
   const { sendMessage } = useSendMessage(conversationId);
@@ -46,6 +49,24 @@ export default function ConversationPage() {
   const conversation: Conversation | undefined = useMemo(() => {
     return conversations.find((c) => c.id === conversationId);
   }, [conversations, conversationId]);
+
+  // Fallback conversation object if not yet loaded in list
+  const activeConversation: Conversation = conversation || {
+    id: conversationId,
+    kind: 'direct',
+    unreadCount: 0,
+    lastMessage: null,
+    lastMessageAt: null,
+  };
+
+  const isDirect = activeConversation.kind === 'direct';
+  const { data: relationship } = useQuery({
+    queryKey: ['relationship', activeConversation.peerUserId],
+    queryFn: () => chatApi.getRelationship(activeConversation.peerUserId!),
+    enabled: Boolean(isDirect && activeConversation.peerUserId),
+    staleTime: 60 * 1000,
+  });
+  const isPeerBlocked = isDirect && Boolean(relationship?.blocked);
 
   // Track the latest message ID that was already marked as read
   const lastMarkedReadIdRef = useRef<string | null>(null);
@@ -76,15 +97,6 @@ export default function ConversationPage() {
     }
   };
 
-  // Fallback conversation object if not yet loaded in list
-  const activeConversation: Conversation = conversation || {
-    id: conversationId,
-    kind: 'direct',
-    unreadCount: 0,
-    lastMessage: null,
-    lastMessageAt: null,
-  };
-
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Desktop Conversation Sidebar */}
@@ -110,6 +122,7 @@ export default function ConversationPage() {
             onLoadMore={() => fetchNextPage()}
             onRetry={handleRetry}
             onMarkRead={(msgId) => markAsRead(msgId)}
+            onDelete={deleteMessage}
           />
         )}
 
@@ -118,6 +131,7 @@ export default function ConversationPage() {
         <MessageComposer
           conversationId={conversationId}
           onSend={(text) => sendMessage(text)}
+          disabled={isPeerBlocked}
         />
       </div>
     </div>

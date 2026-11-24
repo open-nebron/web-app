@@ -7,6 +7,14 @@ import { coreApi } from '@/lib/api';
 import { useProfile, PROFILE_QUERY_KEY } from '@/hooks/use-profile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { normalizeStorageUrl } from '@/lib/utils';
 
@@ -18,6 +26,7 @@ export function AvatarUploader() {
   const { data: profile } = useProfile();
   const [isUploading, setIsUploading] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -113,6 +122,7 @@ export function AvatarUploader() {
       await coreApi.deleteAvatar();
       await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
       setPreviewUrl(null);
+      setShowConfirmDelete(false);
       toast({
         title: 'Avatar removed',
         description: 'Your profile avatar has been reset.',
@@ -177,7 +187,7 @@ export function AvatarUploader() {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setShowConfirmDelete(true)}
               loading={isDeleting}
               disabled={isUploading || isDeleting}
               className="text-destructive hover:text-destructive"
@@ -191,6 +201,36 @@ export function AvatarUploader() {
           PNG, JPEG, or WebP. Max 5MB.
         </p>
       </div>
+
+      {/* Confirmation Dialog for Avatar Removal */}
+      <Dialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove avatar?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove your profile avatar? It will be replaced with your default initial.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDelete(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Remove Avatar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

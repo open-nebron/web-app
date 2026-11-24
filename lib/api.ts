@@ -245,9 +245,20 @@ export const coreApi = {
 
   // Public profile
   async getPublicProfile(username: string): Promise<UserProfile | null> {
-    // If backend doesn't implement GET /users/:username yet, return null
     try {
-      return await apiFetch<UserProfile>(`/api/core/users/${encodeURIComponent(username)}`);
+      return await apiFetch<UserProfile>(`/api/core/users/by-username/${encodeURIComponent(username)}`);
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 404) {
+        return null;
+      }
+      throw err;
+    }
+  },
+
+  async getUserById(userId: string): Promise<UserProfile | null> {
+    try {
+      return await apiFetch<UserProfile>(`/api/core/users/${encodeURIComponent(userId)}`);
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.status === 404) {

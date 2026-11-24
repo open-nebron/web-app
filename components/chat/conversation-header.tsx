@@ -14,7 +14,10 @@ import { BlockUserMenu } from '@/components/users/block-user-menu';
 import { CallButton } from '@/components/call/call-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Conversation } from '@/lib/chat-types';
-import { ArrowLeft, Phone, Users, Settings } from 'lucide-react';
+import { ArrowLeft, Phone, Users, Settings, ShieldAlert } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { chatApi } from '@/lib/chat-api';
+import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
 interface ConversationHeaderProps {
@@ -23,11 +26,43 @@ interface ConversationHeaderProps {
 
 export function ConversationHeader({ conversation }: ConversationHeaderProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const isDirect = conversation.kind === 'direct';
 
   const { data: peerUser } = useUser(isDirect ? conversation.peerUserId : undefined);
   const presence = usePresence(isDirect ? conversation.peerUserId : undefined);
+
+  const { data: relationship } = useQuery({
+    queryKey: ['relationship', conversation.peerUserId],
+    queryFn: () => chatApi.getRelationship(conversation.peerUserId!),
+    enabled: Boolean(isDirect && conversation.peerUserId),
+    staleTime: 60 * 1000,
+  });
+
+  const isBlocked = Boolean(relationship?.blocked);
+
+  const unblockMutation = useMutation({
+    mutationFn: async () => {
+      if (conversation.peerUserId) {
+        await chatApi.unblockUser(conversation.peerUserId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationship', conversation.peerUserId] });
+      toast({
+        title: 'User unblocked',
+        description: 'You can now send and receive messages with this user.',
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Could not unblock user',
+        description: err.message || 'Action failed',
+      });
+    },
+  });
 
   const title = isDirect
     ? peerUser?.name || peerUser?.username || 'User'
@@ -129,6 +164,25 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
           )}
         </div>
       </header>
+
+      {/* Blocked peer banner */}
+      {isDirect && isBlocked && (
+        <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-2.5 flex items-center justify-between text-xs text-destructive shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0" />
+            <span>You blocked this user. Unblock to send messages.</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-2.5 text-xs border-destructive/30 hover:bg-destructive/15 text-destructive font-medium"
+            onClick={() => unblockMutation.mutate()}
+            disabled={unblockMutation.isPending}
+          >
+            {unblockMutation.isPending ? 'Unblocking...' : 'Unblock'}
+          </Button>
+        </div>
+      )}
 
       {/* Group settings dialog */}
       {!isDirect && (

@@ -9,6 +9,7 @@ interface MessageGroupProps {
   isSelf: boolean;
   isGroupChat?: boolean;
   onRetry?: (message: ChatMessage) => void;
+  onDelete?: (messageId: string) => Promise<void> | void;
 }
 
 export function MessageGroup({
@@ -16,6 +17,7 @@ export function MessageGroup({
   isSelf,
   isGroupChat = false,
   onRetry,
+  onDelete,
 }: MessageGroupProps) {
   if (messages.length === 0) return null;
 
@@ -35,6 +37,7 @@ export function MessageGroup({
             showAvatar={showAvatar}
             showSenderName={showSenderName}
             onRetry={onRetry}
+            onDelete={onDelete}
           />
         );
       })}

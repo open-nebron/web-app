@@ -88,11 +88,11 @@ export function MessageComposer({
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
+          placeholder={disabled ? 'You blocked this contact. Unblock to send messages.' : 'Type a message...'}
           disabled={disabled}
           minRows={1}
           maxRows={6}
-          className="flex-1 bg-transparent border-0 resize-none text-sm placeholder:text-muted-foreground focus:outline-none py-1.5 max-h-32 overflow-y-auto leading-relaxed"
+          className="flex-1 bg-transparent border-0 resize-none text-sm placeholder:text-muted-foreground focus:outline-none py-1.5 max-h-32 overflow-y-auto leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
         />
 
         {/* Send button */}

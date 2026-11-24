@@ -133,6 +133,61 @@ export function useMessages(conversationId: string) {
     });
   });
 
+  // Handle real-time message deletion
+  useWsEvent('message.deleted', (payload: any) => {
+    const msgId = payload?.messageId || payload?.id;
+    if (!msgId) return;
+
+    queryClient.setQueryData<any>(queryKey, (old: any) => {
+      if (!old?.pages) return old;
+
+      const updatedPages = old.pages.map((page: any) => ({
+        ...page,
+        data: (page.data || []).map((m: ChatMessage) => {
+          if (m.id === msgId) {
+            return { ...m, deleted: true, body: '' };
+          }
+          return m;
+        }),
+      }));
+
+      return { ...old, pages: updatedPages };
+    });
+  });
+
+  // Delete message helper
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!conversationId || !messageId) return;
+
+      // Optimistically update query cache
+      queryClient.setQueryData<any>(queryKey, (old: any) => {
+        if (!old?.pages) return old;
+
+        const updatedPages = old.pages.map((page: any) => ({
+          ...page,
+          data: (page.data || []).map((m: ChatMessage) => {
+            if (m.id === messageId) {
+              return { ...m, deleted: true, body: '' };
+            }
+            return m;
+          }),
+        }));
+
+        return { ...old, pages: updatedPages };
+      });
+
+      try {
+        await chatApi.deleteMessage(conversationId, messageId);
+      } catch (err) {
+        // Invalidate on error to re-sync
+        queryClient.invalidateQueries({ queryKey });
+        throw err;
+      }
+    },
+    [conversationId, queryClient, queryKey]
+  );
+
   // Mark conversation as read helper
   const markAsRead = useCallback(
     async (messageId?: string) => {
@@ -159,5 +214,6 @@ export function useMessages(conversationId: string) {
     ...query,
     messages,
     markAsRead,
+    deleteMessage,
   };
 }

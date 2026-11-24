@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useUser } from '@/hooks/use-user';
 import { CallButton } from './call-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,59 +22,83 @@ export function CallHistoryRow({ call, currentUserId }: CallHistoryRowProps) {
   const displayName = peerUser?.name || peerUser?.username || 'User';
   const initial = (displayName[0] || 'U').toUpperCase();
 
-  let formattedDate = '';
+  let relativeTime = '';
+  let exactTime = '';
   try {
-    formattedDate = format(new Date(call.startedAt), 'MMM d, h:mm a');
+    const d = new Date(call.startedAt);
+    relativeTime = formatDistanceToNow(d, { addSuffix: true });
+    exactTime = format(d, 'h:mm a');
   } catch {
-    formattedDate = call.startedAt;
+    relativeTime = call.startedAt;
   }
 
-  // Duration
+  // Duration calculation
+  const wasAccepted = Boolean(call.acceptedAt || call.state === 'accepted' || (call.durationSeconds && call.durationSeconds > 0));
+  let durationSeconds = 0;
+  if (call.endedAt && call.acceptedAt) {
+    durationSeconds = Math.max(
+      0,
+      Math.round((new Date(call.endedAt).getTime() - new Date(call.acceptedAt).getTime()) / 1000)
+    );
+  } else if (call.durationSeconds) {
+    durationSeconds = call.durationSeconds;
+  }
+
   let durationStr = '0s';
-  if (call.durationSeconds !== undefined && call.durationSeconds !== null) {
-    const mins = Math.floor(call.durationSeconds / 60);
-    const secs = call.durationSeconds % 60;
+  if (durationSeconds > 0) {
+    const mins = Math.floor(durationSeconds / 60);
+    const secs = durationSeconds % 60;
     durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   }
 
-  // Status icon & badge
-  let statusIcon = isOutgoing ? (
-    <PhoneOutgoing className="w-3.5 h-3.5 text-muted-foreground" />
-  ) : (
-    <PhoneIncoming className="w-3.5 h-3.5 text-muted-foreground" />
-  );
+  // Determine status & icon
+  let statusBadge: React.ReactNode;
+  let statusIcon: React.ReactNode;
 
-  let statusBadge = (
-    <Badge variant="outline" className="text-[11px] font-normal">
-      {call.state}
-    </Badge>
-  );
-
-  if (call.state === 'accepted') {
+  if (wasAccepted) {
+    statusIcon = isOutgoing ? (
+      <PhoneOutgoing className="w-3.5 h-3.5 text-emerald-500" />
+    ) : (
+      <PhoneIncoming className="w-3.5 h-3.5 text-emerald-500" />
+    );
     statusBadge = (
       <Badge variant="secondary" className="text-[11px] text-emerald-600 bg-emerald-500/10 border-emerald-500/20">
-        Connected
+        {durationStr}
       </Badge>
     );
-  } else if (call.state === 'missed') {
-    statusIcon = <PhoneMissed className="w-3.5 h-3.5 text-destructive" />;
-    statusBadge = (
-      <Badge variant="destructive" className="text-[11px]">
-        Missed
-      </Badge>
-    );
-  } else if (call.state === 'rejected') {
+  } else if (call.state === 'rejected' || call.endReason === 'declined' || call.endReason === 'rejected') {
     statusIcon = <PhoneOff className="w-3.5 h-3.5 text-destructive" />;
     statusBadge = (
       <Badge variant="outline" className="text-[11px] text-destructive border-destructive/20">
         Declined
       </Badge>
     );
-  } else if (call.state === 'timed_out') {
+  } else if (call.state === 'missed' || call.endReason === 'missed') {
+    statusIcon = <PhoneMissed className="w-3.5 h-3.5 text-destructive" />;
+    statusBadge = (
+      <Badge variant="destructive" className="text-[11px]">
+        Missed
+      </Badge>
+    );
+  } else if (call.state === 'timed_out' || call.endReason === 'timed_out') {
     statusIcon = <PhoneMissed className="w-3.5 h-3.5 text-amber-500" />;
     statusBadge = (
       <Badge variant="outline" className="text-[11px] text-amber-500 border-amber-500/20">
         No Answer
+      </Badge>
+    );
+  } else if (call.endReason === 'cancelled' || isOutgoing) {
+    statusIcon = <PhoneOutgoing className="w-3.5 h-3.5 text-muted-foreground" />;
+    statusBadge = (
+      <Badge variant="outline" className="text-[11px] text-muted-foreground">
+        Cancelled
+      </Badge>
+    );
+  } else {
+    statusIcon = <PhoneMissed className="w-3.5 h-3.5 text-destructive" />;
+    statusBadge = (
+      <Badge variant="destructive" className="text-[11px]">
+        Missed
       </Badge>
     );
   }
@@ -82,7 +106,7 @@ export function CallHistoryRow({ call, currentUserId }: CallHistoryRowProps) {
   return (
     <div className="flex items-center justify-between p-3.5 rounded-lg border bg-card hover:bg-muted/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0">
-        <Avatar className="w-10 h-10 border">
+        <Avatar className="w-10 h-10 border shrink-0">
           <AvatarImage src={peerUser?.avatarUrl || undefined} alt={displayName} />
           <AvatarFallback className="font-semibold text-xs">{initial}</AvatarFallback>
         </Avatar>
@@ -96,13 +120,8 @@ export function CallHistoryRow({ call, currentUserId }: CallHistoryRowProps) {
             {statusIcon}
             <span>{isOutgoing ? 'Outgoing' : 'Incoming'}</span>
             <span>•</span>
-            <span>{formattedDate}</span>
-            {call.state === 'accepted' && (
-              <>
-                <span>•</span>
-                <span>{durationStr}</span>
-              </>
-            )}
+            <span title={exactTime}>{relativeTime}</span>
+            {exactTime && <span className="hidden sm:inline text-muted-foreground/60">({exactTime})</span>}
           </div>
         </div>
       </div>

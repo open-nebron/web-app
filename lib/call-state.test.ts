@@ -125,10 +125,12 @@ describe('Call State Machine (useCallStore)', () => {
     expect(activeState.kind).toBe('active');
 
     // Network drops: transition to reconnecting
-    store.setState({
-      ...activeState,
-      kind: 'reconnecting',
-    });
+    if (activeState.kind === 'active') {
+      store.setState({
+        ...activeState,
+        kind: 'reconnecting',
+      });
+    }
 
     const reconnectingState = useCallStore.getState().state;
     expect(reconnectingState.kind).toBe('reconnecting');
@@ -137,10 +139,12 @@ describe('Call State Machine (useCallStore)', () => {
     }
 
     // Reconnected: transition back to active
-    store.setState({
-      ...reconnectingState,
-      kind: 'active',
-    });
+    if (reconnectingState.kind === 'reconnecting') {
+      store.setState({
+        ...reconnectingState,
+        kind: 'active',
+      });
+    }
 
     const restoredState = useCallStore.getState().state;
     expect(restoredState.kind).toBe('active');
