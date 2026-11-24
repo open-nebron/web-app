@@ -24,6 +24,7 @@ import { chatApi } from '@/lib/chat-api';
 import { MessageReactions } from './message-reactions';
 import { EmojiPicker } from './emoji-picker';
 import { ForwardDialog } from './forward-dialog';
+import { CallInviteCard } from './call-invite-card';
 
 interface MessageRowProps {
   message: ChatMessage;
@@ -211,7 +212,7 @@ export function MessageRow({
             </Button>
 
             {/* Copy button */}
-            {message.body && (
+            {message.body && message.kind !== 'call_invite' && (
               <Button
                 type="button"
                 variant="ghost"
@@ -240,7 +241,7 @@ export function MessageRow({
             </Button>
 
             {/* Edit (own messages only) */}
-            {isSelf && (
+            {isSelf && message.kind !== 'call_invite' && (
               <Button
                 type="button"
                 variant="ghost"
@@ -294,6 +295,21 @@ export function MessageRow({
             >
               <span>Message deleted</span>
               <span className="text-[10px] not-italic text-muted-foreground/60">{time}</span>
+            </div>
+          ) : message.kind === 'call_invite' ? (
+            <div className="flex flex-col items-start w-full">
+              <CallInviteCard message={message} />
+              <div
+                className={cn(
+                  'flex items-center gap-1 mt-1 text-[10px] select-none text-muted-foreground',
+                  isSelf && 'self-end'
+                )}
+              >
+                {isStarred && (
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" aria-label="Starred" />
+                )}
+                <span>{time}</span>
+              </div>
             </div>
           ) : (
             <div

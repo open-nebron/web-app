@@ -48,8 +48,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             });
           }
         } else if (active.state === 'accepted') {
+          const isGroup = Boolean(active.conversationId);
           const isCaller = active.callerId === currentUserId;
-          const peerId = isCaller ? active.calleeId : active.callerId;
+          const peerId = isCaller ? (active.calleeId || active.hostId || '') : (active.callerId || active.hostId || '');
           const tokens = await voiceApi.refreshTokens(active.id);
           if (!isMounted) return;
 
@@ -62,6 +63,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             peerId,
             startedAt: active.startedAt,
             connectedAt: active.acceptedAt || new Date().toISOString(),
+            mode: active.mode || 'audio',
+            isGroup,
+            conversationId: active.conversationId || undefined,
+            hostId: active.hostId || active.callerId,
+            participants: active.participants,
           });
         }
       } catch {

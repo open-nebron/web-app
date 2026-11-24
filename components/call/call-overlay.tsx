@@ -5,6 +5,7 @@ import { useCallStore } from '@/lib/call-store';
 import { IncomingCallModal } from './incoming-call-modal';
 import { OutgoingCallScreen } from './outgoing-call-screen';
 import { ActiveCallScreen } from './active-call-screen';
+import { GroupCallScreen } from './group-call-screen';
 
 export function CallOverlay() {
   const state = useCallStore((s) => s.state);
@@ -42,6 +43,22 @@ export function CallOverlay() {
     state.kind === 'active' ||
     state.kind === 'reconnecting'
   ) {
+    if (state.isGroup) {
+      return (
+        <GroupCallScreen
+          callId={state.callId}
+          roomName={state.roomName}
+          livekitUrl={state.livekitUrl}
+          token={state.token}
+          hostId={state.hostId}
+          conversationId={state.conversationId}
+          startedAt={state.startedAt}
+          connectedAt={state.connectedAt}
+          mode={state.mode || 'audio'}
+        />
+      );
+    }
+
     return (
       <ActiveCallScreen
         callId={state.callId}

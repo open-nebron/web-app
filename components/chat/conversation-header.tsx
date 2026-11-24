@@ -10,6 +10,7 @@ import { useUser } from '@/hooks/use-user';
 import { usePresence } from '@/hooks/use-presence';
 import { UserPopover } from '@/components/users/user-popover';
 import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog';
+import { StartGroupCallDialog } from '@/components/call/start-group-call-dialog';
 import { BlockUserMenu } from '@/components/users/block-user-menu';
 import { CallButton } from '@/components/call/call-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -32,6 +33,7 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
   const queryClient = useQueryClient();
   const openSearch = useSearchStore((state) => state.openSearch);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [startGroupCallOpen, setStartGroupCallOpen] = useState(false);
   const isDirect = conversation.kind === 'direct';
 
   const { data: peerUser } = useUser(isDirect ? conversation.peerUserId : undefined);
@@ -163,6 +165,20 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
             <CallButton peerUserId={conversation.peerUserId} />
           )}
 
+          {/* Group call button (group only) */}
+          {!isDirect && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => setStartGroupCallOpen(true)}
+              title="Start group call"
+              aria-label="Start group call"
+            >
+              <Phone className="w-4 h-4" />
+            </Button>
+          )}
+
           {/* Start video call option in conversation header */}
           {isDirect && conversation.peerUserId && (
             <Button
@@ -238,6 +254,15 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
           conversation={conversation}
           open={groupSettingsOpen}
           onOpenChange={setGroupSettingsOpen}
+        />
+      )}
+
+      {/* Group call dialog */}
+      {!isDirect && (
+        <StartGroupCallDialog
+          conversation={conversation}
+          open={startGroupCallOpen}
+          onOpenChange={setStartGroupCallOpen}
         />
       )}
     </>

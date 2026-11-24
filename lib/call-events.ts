@@ -1,11 +1,13 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useWsEvent } from '@/hooks/use-ws';
 import { useCallStore } from './call-store';
 import { ringtone } from './ringtone';
 import { toast } from '@/components/ui/use-toast';
 
 export function useCallEventHandlers() {
+  const queryClient = useQueryClient();
   const {
     state,
     setState,
@@ -29,6 +31,8 @@ export function useCallEventHandlers() {
       roomName: payload.roomName || `call-${payload.callId}`,
       startedAt: payload.startedAt || new Date().toISOString(),
       mode: payload.mode || 'audio',
+      isGroup: Boolean(payload.isGroup),
+      conversationId: payload.conversationId,
     });
 
     ringtone.start();
@@ -41,7 +45,7 @@ export function useCallEventHandlers() {
           new Notification(
             payload.mode === 'video' ? 'Incoming video call' : 'Incoming voice call',
             {
-              body: 'Incoming call on Nebron',
+              body: payload.isGroup ? 'Incoming group call on Nebron' : 'Incoming call on Nebron',
               icon: '/favicon.ico',
             }
           );
@@ -83,6 +87,8 @@ export function useCallEventHandlers() {
         : new Date().toISOString();
     const mode =
       payload.mode || (currentState.kind === 'outgoing' ? currentState.mode : 'audio');
+    const isGroup = currentState.kind === 'outgoing' ? currentState.isGroup : false;
+    const conversationId = currentState.kind === 'outgoing' ? currentState.conversationId : undefined;
 
     setState({
       kind: 'connecting',
@@ -93,6 +99,8 @@ export function useCallEventHandlers() {
       peerId,
       startedAt,
       mode,
+      isGroup,
+      conversationId,
     });
   });
 
@@ -111,6 +119,8 @@ export function useCallEventHandlers() {
         : new Date().toISOString();
     const mode =
       payload.mode || (currentState.kind === 'incoming' ? currentState.mode : 'audio');
+    const isGroup = currentState.kind === 'incoming' ? currentState.isGroup : false;
+    const conversationId = currentState.kind === 'incoming' ? currentState.conversationId : undefined;
 
     setState({
       kind: 'connecting',
@@ -121,6 +131,9 @@ export function useCallEventHandlers() {
       peerId,
       startedAt,
       mode,
+      isGroup,
+      conversationId,
+      hostId: currentState.kind === 'incoming' ? currentState.callerId : undefined,
     });
   });
 
@@ -148,15 +161,21 @@ export function useCallEventHandlers() {
 
   // 7. call.ended (both receive when either party hangs up or call ends)
   useWsEvent('call.ended', (payload: any) => {
+    if (payload?.conversationId) {
+      queryClient.invalidateQueries({ queryKey: ['active-group-call', payload.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['messages', payload.conversationId] });
+    }
     ringtone.stop();
     setIncomingRingtonePlaying(false);
     const currentState = useCallStore.getState().state;
     if (currentState.kind !== 'idle') {
-      toast({
-        title: 'Call ended',
-        description: payload?.reason ? `Reason: ${payload.reason}` : undefined,
-      });
-      reset();
+      if (!payload?.callId || currentState.callId === payload.callId) {
+        toast({
+          title: 'Call ended',
+          description: payload?.reason ? `Reason: ${payload.reason}` : undefined,
+        });
+        reset();
+      }
     }
   });
 
@@ -182,4 +201,21 @@ export function useCallEventHandlers() {
       setPeerDisconnected(true);
     }
   });
+
+  // 10. call.participant_joined (broadcast in group conversation)
+  useWsEvent('call.participant_joined', (payload: unknown) => {
+    const data = payload as { conversationId?: string } | undefined;
+    if (data?.conversationId) {
+      queryClient.invalidateQueries({ queryKey: ['active-group-call', data.conversationId] });
+    }
+  });
+
+  // 11. call.participant_left (broadcast in group conversation)
+  useWsEvent('call.participant_left', (payload: unknown) => {
+    const data = payload as { conversationId?: string } | undefined;
+    if (data?.conversationId) {
+      queryClient.invalidateQueries({ queryKey: ['active-group-call', data.conversationId] });
+    }
+  });
 }
+

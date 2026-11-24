@@ -1,5 +1,16 @@
 export type CallMode = 'audio' | 'video';
 
+export interface CallInviteBody {
+  callId: string;
+  roomName: string;
+  hostId: string;
+  mode: CallMode;
+  startedAt: string;
+  endedAt?: string | null;
+  endReason?: string | null;
+  endedBy?: string | null;
+}
+
 export type CallState =
   | { kind: 'idle' }
   | {
@@ -9,6 +20,8 @@ export type CallState =
       roomName: string;
       startedAt: string;
       mode?: CallMode;
+      isGroup?: boolean;
+      conversationId?: string;
     }
   | {
       kind: 'outgoing';
@@ -17,6 +30,8 @@ export type CallState =
       roomName: string;
       startedAt: string;
       mode?: CallMode;
+      isGroup?: boolean;
+      conversationId?: string;
     }
   | {
       kind: 'connecting';
@@ -28,6 +43,10 @@ export type CallState =
       startedAt: string;
       connectedAt?: string;
       mode?: CallMode;
+      isGroup?: boolean;
+      conversationId?: string;
+      hostId?: string;
+      participants?: string[];
     }
   | {
       kind: 'active';
@@ -39,6 +58,10 @@ export type CallState =
       startedAt: string;
       connectedAt: string;
       mode?: CallMode;
+      isGroup?: boolean;
+      conversationId?: string;
+      hostId?: string;
+      participants?: string[];
     }
   | {
       kind: 'reconnecting';
@@ -50,6 +73,10 @@ export type CallState =
       startedAt: string;
       connectedAt: string;
       mode?: CallMode;
+      isGroup?: boolean;
+      conversationId?: string;
+      hostId?: string;
+      participants?: string[];
     }
   | { kind: 'ended'; callId: string; reason: string; duration: number };
 
@@ -58,7 +85,7 @@ export interface CallRecord {
   callerId: string;
   calleeId: string;
   roomName: string;
-  state: 'ringing' | 'accepted' | 'rejected' | 'ended' | 'missed' | 'timed_out';
+  state: 'ringing' | 'accepted' | 'rejected' | 'ended' | 'missed' | 'timed_out' | 'cancelled';
   startedAt: string;
   acceptedAt?: string | null;
   endedAt?: string | null;
@@ -66,9 +93,27 @@ export interface CallRecord {
   endedBy?: string | null;
   endReason?: string | null;
   mode?: CallMode;
+  conversationId?: string | null;
+  hostId?: string | null;
+  participants?: string[];
 }
 
 export interface StartCallResponse {
+  call: CallRecord;
+}
+
+export interface StartGroupCallResponse {
+  call: CallRecord;
+  token: string;
+  hostToken: string;
+  livekitUrl: string;
+  roomName: string;
+}
+
+export interface JoinGroupCallResponse {
+  token: string;
+  livekitUrl: string;
+  roomName: string;
   call: CallRecord;
 }
 

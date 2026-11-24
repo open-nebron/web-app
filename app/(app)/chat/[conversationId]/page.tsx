@@ -16,8 +16,10 @@ import { chatApi } from '@/lib/chat-api';
 import { useChatStore } from '@/lib/chat-store';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Phone } from 'lucide-react';
 import type { ChatMessage, Conversation } from '@/lib/chat-types';
+import { voiceApi } from '@/lib/voice-api';
+import { useCallStore } from '@/lib/call-store';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -105,6 +107,58 @@ export default function ConversationPage() {
     staleTime: 60 * 1000,
   });
   const isPeerBlocked = isDirect && Boolean(relationship?.blocked);
+
+  // Check active group call
+  const currentCallState = useCallStore((s) => s.state);
+  const isNotInThisCall = currentCallState.kind === 'idle';
+  const [isJoiningCall, setIsJoiningCall] = React.useState(false);
+
+  const { data: activeCallData } = useQuery({
+    queryKey: ['active-group-call', conversationId],
+    queryFn: () => voiceApi.getConversationCall(conversationId, 'active'),
+    enabled: Boolean(activeConversation.kind === 'group'),
+    staleTime: 5000,
+    refetchInterval: 10000,
+  });
+
+  const activeGroupCall = activeCallData?.call;
+  const showCallBanner = Boolean(
+    activeConversation.kind === 'group' &&
+    activeGroupCall &&
+    activeGroupCall.state === 'accepted' &&
+    isNotInThisCall
+  );
+
+  const handleJoinCall = async () => {
+    if (!activeGroupCall) return;
+    try {
+      setIsJoiningCall(true);
+      const res = await voiceApi.joinGroupCall(activeGroupCall.id);
+      useCallStore.getState().setState({
+        kind: 'connecting',
+        callId: activeGroupCall.id,
+        roomName: res.roomName,
+        livekitUrl: res.livekitUrl,
+        token: res.token,
+        peerId: activeGroupCall.hostId || activeGroupCall.callerId,
+        startedAt: activeGroupCall.startedAt,
+        mode: activeGroupCall.mode || 'audio',
+        isGroup: true,
+        conversationId,
+        hostId: activeGroupCall.hostId || undefined,
+        participants: activeGroupCall.participants,
+      });
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string };
+      toast({
+        variant: 'destructive',
+        title: 'Could not join call',
+        description: errorObj.message || 'The call may have ended or reached capacity.',
+      });
+    } finally {
+      setIsJoiningCall(false);
+    }
+  };
 
   // Track the latest message ID that was already marked as read
   const lastMarkedReadIdRef = useRef<string | null>(null);
@@ -235,6 +289,33 @@ export default function ConversationPage() {
       {/* Main Chat Thread */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background">
         <ConversationHeader conversation={activeConversation} />
+
+        {/* Active Group Call Recovery Banner */}
+        {showCallBanner && activeGroupCall && (
+          <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2.5 flex items-center justify-between text-xs text-foreground shrink-0 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                Active {activeGroupCall.mode === 'video' ? 'video' : 'voice'} call in progress
+              </span>
+              {activeGroupCall.participants && (
+                <span className="text-muted-foreground text-[11px]">
+                  ({activeGroupCall.participants.length} participants)
+                </span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="default"
+              className="text-xs h-7 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              onClick={handleJoinCall}
+              disabled={isJoiningCall}
+            >
+              {isJoiningCall ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Phone className="w-3.5 h-3.5" />}
+              <span>Join Call</span>
+            </Button>
+          </div>
+        )}
 
         {/* Message Request Banner */}
         {isPendingForMe && (

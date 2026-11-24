@@ -64,6 +64,7 @@ export interface ChatMessage {
   replyToId?: string | null;
   replyTo?: MessagePreview | null;
   forwardedFrom?: ForwardedFromInfo | null;
+  kind?: string | null;
 }
 
 export interface ConversationMember {

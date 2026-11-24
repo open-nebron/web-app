@@ -2,6 +2,8 @@ import { apiFetch } from './api';
 import type {
   CallRecord,
   StartCallResponse,
+  StartGroupCallResponse,
+  JoinGroupCallResponse,
   AcceptCallResponse,
   RefreshTokenResponse,
 } from './call-types';
@@ -12,6 +14,50 @@ export const voiceApi = {
       method: 'POST',
       body: JSON.stringify({ calleeId, mode }),
     });
+  },
+
+  async startGroupCall(
+    conversationId: string,
+    firstInviteeId?: string,
+    mode: 'audio' | 'video' = 'audio'
+  ): Promise<StartGroupCallResponse> {
+    return apiFetch<StartGroupCallResponse>(`/api/voice/conversations/${conversationId}/calls`, {
+      method: 'POST',
+      body: JSON.stringify({ firstInviteeId, mode }),
+    });
+  },
+
+  async joinGroupCall(callId: string): Promise<JoinGroupCallResponse> {
+    return apiFetch<JoinGroupCallResponse>(`/api/voice/calls/${callId}/join`, {
+      method: 'POST',
+    });
+  },
+
+  async leaveGroupCall(callId: string): Promise<{ ok: boolean; remainingCount: number }> {
+    return apiFetch<{ ok: boolean; remainingCount: number }>(`/api/voice/calls/${callId}/leave`, {
+      method: 'POST',
+    });
+  },
+
+  async endGroupCall(callId: string): Promise<{ call: CallRecord }> {
+    const res = await apiFetch<any>(`/api/voice/calls/${callId}`, {
+      method: 'DELETE',
+    });
+    return res?.call ? res : { call: res };
+  },
+
+  async getConversationCall(
+    conversationId: string,
+    state?: string
+  ): Promise<{ call: CallRecord } | null> {
+    const query = new URLSearchParams();
+    query.set('conversationId', conversationId);
+    if (state) query.set('state', state);
+    const res = await apiFetch<any>(`/api/voice/calls?${query.toString()}`);
+    if (!res) return null;
+    if (res.call) return res;
+    if (res.id) return { call: res };
+    return null;
   },
 
   async acceptCall(callId: string): Promise<AcceptCallResponse> {

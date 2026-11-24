@@ -242,4 +242,50 @@ describe('Call State Machine (useCallStore)', () => {
       expect(incomingState.mode).toBe('video');
     }
   });
+
+  // 6. Group call initialization and state preservation
+  it('manages group call state with isGroup flag and conversationId', () => {
+    const store = useCallStore.getState();
+
+    store.setState({
+      kind: 'connecting',
+      callId: 'call-grp-1',
+      roomName: 'room-grp-1',
+      livekitUrl: 'ws://localhost:7880',
+      token: 'jwt-grp',
+      peerId: 'host-1',
+      startedAt: '2026-11-24T12:00:00Z',
+      mode: 'audio',
+      isGroup: true,
+      conversationId: 'conv-grp-1',
+      hostId: 'host-1',
+      participants: ['host-1'],
+    });
+
+    const connState = useCallStore.getState().state;
+    expect(connState.kind).toBe('connecting');
+    if (connState.kind === 'connecting') {
+      expect(connState.isGroup).toBe(true);
+      expect(connState.conversationId).toBe('conv-grp-1');
+      expect(connState.hostId).toBe('host-1');
+      expect(connState.participants).toEqual(['host-1']);
+    }
+
+    // Move to active
+    store.setState({
+      ...connState,
+      kind: 'active',
+      connectedAt: '2026-11-24T12:00:04Z',
+      participants: ['host-1', 'user-2', 'user-3'],
+    });
+
+    const activeState = useCallStore.getState().state;
+    expect(activeState.kind).toBe('active');
+    if (activeState.kind === 'active') {
+      expect(activeState.isGroup).toBe(true);
+      expect(activeState.conversationId).toBe('conv-grp-1');
+      expect(activeState.hostId).toBe('host-1');
+      expect(activeState.participants).toHaveLength(3);
+    }
+  });
 });

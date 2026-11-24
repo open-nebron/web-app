@@ -70,6 +70,9 @@ export function IncomingCallModal({
         peerId: callerId,
         startedAt: res.call?.startedAt || startedAt,
         mode: res.call?.mode || mode,
+        isGroup: Boolean(res.call?.conversationId),
+        conversationId: res.call?.conversationId || undefined,
+        hostId: res.call?.hostId || res.call?.callerId,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Call may have already ended';
