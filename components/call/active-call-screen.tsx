@@ -6,7 +6,9 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   useLocalParticipant,
+  useRemoteParticipants,
   useRoomContext,
+  ParticipantContext,
   ConnectionQualityIndicator,
 } from '@livekit/components-react';
 import { useCallStore } from '@/lib/call-store';
@@ -60,6 +62,9 @@ function CallActiveUI({
 
   const { data: peerUser } = useUser(peerId);
   const { isMicrophoneEnabled, localParticipant } = useLocalParticipant();
+  const remoteParticipants = useRemoteParticipants();
+  const peerParticipant = remoteParticipants[0];
+  const activeParticipant = peerParticipant || localParticipant;
   const room = useRoomContext();
 
   const [durationSeconds, setDurationSeconds] = useState(0);
@@ -159,7 +164,13 @@ function CallActiveUI({
           <span>Encrypted Voice</span>
         </div>
         <div className="flex items-center gap-1">
-          <ConnectionQualityIndicator />
+          {activeParticipant ? (
+            <ParticipantContext.Provider value={activeParticipant}>
+              <ConnectionQualityIndicator participant={activeParticipant} />
+            </ParticipantContext.Provider>
+          ) : (
+            <Wifi className="w-3.5 h-3.5" />
+          )}
         </div>
       </div>
 
