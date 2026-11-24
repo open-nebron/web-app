@@ -82,6 +82,34 @@ export function useConversations(params: ListConversationsParams = {}) {
     }
   });
 
+  // Handle real-time message deletion to update lastMessage preview snippet
+  useWsEvent('message.deleted', (payload: any) => {
+    const { conversationId, messageId, id } = payload || {};
+    const msgId = messageId || id;
+    if (!msgId) return;
+
+    queryClient.setQueriesData<Conversation[]>(
+      { queryKey: ['conversations'] },
+      (old) => {
+        if (!old) return old;
+        return old.map((c) => {
+          if ((!conversationId || c.id === conversationId) && c.lastMessage && c.lastMessage.id === msgId) {
+            return {
+              ...c,
+              lastMessage: {
+                id: c.lastMessage.id,
+                senderId: c.lastMessage.senderId,
+                createdAt: c.lastMessage.createdAt,
+                body: 'Message deleted',
+              },
+            };
+          }
+          return c;
+        });
+      }
+    );
+  });
+
   // Mutations
   const createDirectMutation = useMutation({
     mutationFn: (peerUserId: string) => chatApi.createDirect(peerUserId),

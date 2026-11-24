@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
-import type { ChatMessage, WSMessageNewPayload, WSMessageReadPayload } from '@/lib/chat-types';
+import type { ChatMessage, Conversation, WSMessageNewPayload, WSMessageReadPayload } from '@/lib/chat-types';
 import { useWsEvent, useWsClient } from '@/hooks/use-ws';
 import { useAuthStore } from '@/lib/auth-store';
 
@@ -137,37 +137,17 @@ export function useMessages(conversationId: string) {
   useWsEvent('message.deleted', (payload: any) => {
     const msgId = payload?.messageId || payload?.id;
     if (!msgId) return;
+    if (payload?.conversationId && payload.conversationId !== conversationId) return;
 
-    queryClient.setQueryData<any>(queryKey, (old: any) => {
-      if (!old?.pages) return old;
-
-      const updatedPages = old.pages.map((page: any) => ({
-        ...page,
-        data: (page.data || []).map((m: ChatMessage) => {
-          if (m.id === msgId) {
-            return { ...m, deleted: true, body: '' };
-          }
-          return m;
-        }),
-      }));
-
-      return { ...old, pages: updatedPages };
-    });
-  });
-
-  // Delete message helper
-  const deleteMessage = useCallback(
-    async (messageId: string) => {
-      if (!conversationId || !messageId) return;
-
-      // Optimistically update query cache
-      queryClient.setQueryData<any>(queryKey, (old: any) => {
+    queryClient.setQueriesData<any>(
+      { queryKey: ['messages', conversationId] },
+      (old: any) => {
         if (!old?.pages) return old;
 
         const updatedPages = old.pages.map((page: any) => ({
           ...page,
           data: (page.data || []).map((m: ChatMessage) => {
-            if (m.id === messageId) {
+            if (m.id === msgId || (m.clientId && m.clientId === msgId)) {
               return { ...m, deleted: true, body: '' };
             }
             return m;
@@ -175,13 +155,63 @@ export function useMessages(conversationId: string) {
         }));
 
         return { ...old, pages: updatedPages };
-      });
+      }
+    );
+  });
+
+  // Delete message helper
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!conversationId || !messageId) return;
+
+      // 1. Optimistically update message cache
+      queryClient.setQueriesData<any>(
+        { queryKey: ['messages', conversationId] },
+        (old: any) => {
+          if (!old?.pages) return old;
+
+          const updatedPages = old.pages.map((page: any) => ({
+            ...page,
+            data: (page.data || []).map((m: ChatMessage) => {
+              if (m.id === messageId || (m.clientId && m.clientId === messageId)) {
+                return { ...m, deleted: true, body: '' };
+              }
+              return m;
+            }),
+          }));
+
+          return { ...old, pages: updatedPages };
+        }
+      );
+
+      // 2. Optimistically update conversation preview snippet in sidebar
+      queryClient.setQueriesData<Conversation[]>(
+        { queryKey: ['conversations'] },
+        (old) => {
+          if (!old) return old;
+          return old.map((c) => {
+            if (c.id === conversationId && c.lastMessage && c.lastMessage.id === messageId) {
+              return {
+                ...c,
+                lastMessage: {
+                  id: c.lastMessage.id,
+                  senderId: c.lastMessage.senderId,
+                  createdAt: c.lastMessage.createdAt,
+                  body: 'Message deleted',
+                },
+              };
+            }
+            return c;
+          });
+        }
+      );
 
       try {
         await chatApi.deleteMessage(conversationId, messageId);
       } catch (err) {
         // Invalidate on error to re-sync
         queryClient.invalidateQueries({ queryKey });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
         throw err;
       }
     },

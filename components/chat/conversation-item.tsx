@@ -115,7 +115,8 @@ export function ConversationItem({
           <p
             className={cn(
               'text-xs truncate text-muted-foreground leading-normal',
-              conversation.unreadCount > 0 && 'font-medium text-foreground'
+              lastMsgSnippet === 'Message deleted' && 'italic',
+              conversation.unreadCount > 0 && lastMsgSnippet !== 'Message deleted' && 'font-medium text-foreground'
             )}
           >
             {lastMsgSnippet}
