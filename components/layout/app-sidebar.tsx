@@ -8,12 +8,13 @@ import {
   User,
   Settings,
   LogOut,
-  Sparkles,
   ChevronUp,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
+import { useConversations } from '@/hooks/use-conversations';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,12 +30,20 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: profile, isLoading } = useProfile();
   const { logout, isLoggingOut } = useAuth();
+  const { conversations } = useConversations();
+
+  const totalUnread = conversations.reduce(
+    (sum, c) => sum + (c.unreadCount || 0),
+    0
+  );
 
   const userInitial = profile?.name
     ? profile.name[0].toUpperCase()
     : profile?.username
     ? profile.username[0].toUpperCase()
     : 'U';
+
+  const isChatActive = pathname.startsWith('/chat');
 
   return (
     <aside className="w-64 border-r bg-card flex flex-col h-screen select-none">
@@ -53,48 +62,68 @@ export function AppSidebar() {
         </div>
       </div>
 
-      {/* Main Navigation & Placeholder */}
+      {/* Main Navigation */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
         <div className="space-y-4">
           <div className="px-2">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Conversations
+              Navigation
             </h4>
-            <div className="rounded-lg border border-dashed border-muted p-6 text-center">
-              <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground/60 mb-2" />
-              <p className="text-sm font-medium">Chats coming soon</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Real-time messaging & voice will arrive in 5b and 5c.
-              </p>
-            </div>
+            <nav className="space-y-1">
+              <Link
+                href="/chat"
+                className={`flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isChatActive
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Messages</span>
+                </div>
+                {totalUnread > 0 && (
+                  <Badge
+                    variant="default"
+                    className="h-4 min-w-4 px-1.5 py-0 text-[10px] rounded-full flex items-center justify-center font-bold"
+                  >
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                  </Badge>
+                )}
+              </Link>
+
+              <Link
+                href="/profile"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/profile')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <User className="h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+
+              <Link
+                href="/settings"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/settings'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </nav>
           </div>
         </div>
 
-        {/* Quick links */}
-        <nav className="space-y-1">
-          <Link
-            href="/profile"
-            className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              pathname.startsWith('/profile')
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-            }`}
-          >
-            <User className="h-4 w-4" />
-            <span>Profile</span>
-          </Link>
-          <Link
-            href="/settings"
-            className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              pathname === '/settings'
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-        </nav>
+        {/* Footer info */}
+        <div className="px-2 text-[11px] text-muted-foreground">
+          <p>Nebron Web Client</p>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Real-time chat & groups</p>
+        </div>
       </div>
 
       {/* Footer / User Menu */}
@@ -130,20 +159,20 @@ export function AppSidebar() {
                     </p>
                   </div>
                 </div>
-                <ChevronUp className="h-4 w-4 text-muted-foreground ml-2 shrink-0" />
+                <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 mb-2">
+            <DropdownMenuContent align="end" className="w-56" side="top">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/profile" className="flex items-center">
+                <Link href="/profile" className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                  <span>View Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center">
+                <Link href="/settings" className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
@@ -155,7 +184,7 @@ export function AppSidebar() {
                 className="text-destructive focus:text-destructive cursor-pointer"
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -164,4 +193,3 @@ export function AppSidebar() {
     </aside>
   );
 }
-

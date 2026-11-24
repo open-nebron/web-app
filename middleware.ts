@@ -9,7 +9,8 @@ export function middleware(request: NextRequest) {
   const isProtectedPage =
     pathname === '/' ||
     pathname.startsWith('/profile') ||
-    pathname.startsWith('/settings');
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/chat');
 
   // If user has refresh_token cookie and tries to access login or register, send to root
   if (isAuthPage && refreshToken) {
@@ -34,4 +35,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
-
