@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   ChevronUp,
+  Phone,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -93,6 +94,18 @@ export function AppSidebar() {
               </Link>
 
               <Link
+                href="/calls"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/calls')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Phone className="h-4 w-4" />
+                <span>Calls</span>
+              </Link>
+
+              <Link
                 href="/profile"
                 className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname.startsWith('/profile')
@@ -169,6 +182,12 @@ export function AppSidebar() {
                 <Link href="/profile" className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
                   <span>View Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/calls" className="cursor-pointer">
+                  <Phone className="mr-2 h-4 w-4" />
+                  <span>Calls</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

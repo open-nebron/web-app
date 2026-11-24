@@ -55,6 +55,7 @@ export function MemberPicker({
     }, 250);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, currentUserId, excludeKey]);
 
   const toggleUser = (user: PublicUser) => {

@@ -101,6 +101,45 @@ Follow this checklist to verify full functionality:
 
 ---
 
+## Voice Calls (WebRTC via LiveKit)
+
+Nebron features browser-to-browser voice calling powered by LiveKit SFU and real-time WebSocket signaling via `chat-service` and `voice-service`.
+
+### What's Supported
+- **1:1 Real-time Audio Calls**: High-fidelity, low-latency Opus WebRTC audio channels.
+- **Global Ingress & Overlay**: Calls can be initiated or received from any view across the platform.
+- **Web Audio Ringtone**: Synthesized ringing tones with background tab notification support.
+- **Controls & Quality**: Microphone mute/unmute, speaker mute (deafen), call duration tracking, and LiveKit connection quality indicator.
+- **Resilience & Recovery**: Automatic token refresh on network drops, peer disconnect banners, and crash/refresh recovery (re-joining active calls on page reload).
+- **Call History**: Dedicated `/calls` route to review past call status, duration, and timestamps.
+
+### Known Limitations (Planned for v2)
+- Video calls (v2)
+- Group calls (v2)
+- Screen sharing (v2)
+- Call recording (v2)
+- Voicemail & call transfer (v2)
+- Push notifications via notifications-service (v2)
+
+### 8-Item Manual Test Checklist
+
+- [ ] **1. Initiate call**: User A clicks the Phone button in a 1:1 conversation header with User B. User A enters the outgoing call screen within 500ms. User B receives the incoming call modal and ringtone within 2s.
+- [ ] **2. Accept call**: User B clicks Accept. Both users transition into the active call screen and audio flows bidirectionally.
+- [ ] **3. Mic mute**: User A clicks the Mic button. User B hears silence. Unmuting restores voice transmission immediately.
+- [ ] **4. Speaker mute**: User B clicks the Speaker button (deafen). Remote incoming audio is muted locally without affecting the microphone.
+- [ ] **5. Duration tracking**: The timer increments every second from connection time and displays `m:ss`.
+- [ ] **6. Clean hangup**: Clicking the red End Call button hangs up via `voice-service`, disconnects the LiveKit room, and returns both users to their previous screen.
+- [ ] **7. Page refresh recovery**: Refreshing the browser tab (F5) during an active call restores the call session within 3 seconds using `GET /api/voice/calls/active` and token refresh.
+- [ ] **8. Network drop & reconnect**: Briefly toggling offline in DevTools triggers the reconnecting banner and LiveKit automatically re-establishes the audio stream upon reconnection.
+
+### Audio Troubleshooting
+- **No Sound / Mic Access Denied**: Ensure microphone permissions are granted in browser settings (`chrome://settings/content/microphone`).
+- **Cannot Reach LiveKit**: Verify `LIVEKIT_PUBLIC_URL=ws://localhost:7880` is configured in `infra/.env` and `voice-service/.env.example`.
+- **Echo / Feedback**: Use headphones or verify system echo cancellation when testing two tabs on the same machine.
+
+
+---
+
 ## What's Coming Next
 
 - **Phase 5b**: Real-time Chat UI, conversation lists, WebSocket channels, message history with ScyllaDB, typing indicators, and presence.

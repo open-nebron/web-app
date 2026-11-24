@@ -11,6 +11,7 @@ import { usePresence } from '@/hooks/use-presence';
 import { UserPopover } from '@/components/users/user-popover';
 import { GroupSettingsDialog } from '@/components/groups/group-settings-dialog';
 import { BlockUserMenu } from '@/components/users/block-user-menu';
+import { CallButton } from '@/components/call/call-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Conversation } from '@/lib/chat-types';
 import { ArrowLeft, Phone, Users, Settings } from 'lucide-react';
@@ -107,25 +108,10 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
 
         {/* Action icons on right */}
         <div className="flex items-center gap-1">
-          {/* Voice call placeholder button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-60 cursor-not-allowed"
-                  disabled
-                  aria-label="Start voice call"
-                >
-                  <Phone className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Voice calls coming in next update</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {/* Voice call button (1:1 only) */}
+          {isDirect && conversation.peerUserId && (
+            <CallButton peerUserId={conversation.peerUserId} />
+          )}
 
           {/* Settings / Block menu */}
           {isDirect && conversation.peerUserId ? (

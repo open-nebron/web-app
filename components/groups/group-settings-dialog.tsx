@@ -59,7 +59,10 @@ export function GroupSettingsDialog({
     enabled: open,
   });
 
-  const members: ConversationMember[] = membersData?.data || [];
+  const members = useMemo<ConversationMember[]>(
+    () => membersData?.data || [],
+    [membersData?.data]
+  );
   const currentMember = members.find((m) => m.userId === currentUserId);
   const isOwner = conversation.ownerId === currentUserId || currentMember?.role === 'owner';
 

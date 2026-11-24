@@ -1,0 +1,89 @@
+'use client';
+
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { voiceApi } from '@/lib/voice-api';
+import { useAuthStore } from '@/lib/auth-store';
+import { CallHistoryRow } from '@/components/call/call-history-row';
+import { Phone, PhoneCall, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+
+export default function CallsPage() {
+  const currentUserId = useAuthStore((s) => s.user?.userId);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['call-history'],
+    queryFn: () => voiceApi.getCallHistory({ limit: 50 }),
+  });
+
+  const calls = data?.data || [];
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Voice Calls</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            View your recent incoming and outgoing voice calls.
+          </p>
+        </div>
+        <Link href="/chat">
+          <Button variant="outline" size="sm" className="gap-2 text-xs">
+            <PhoneCall className="w-3.5 h-3.5" />
+            <span>Open Chat</span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Content */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-24 text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="p-8 text-center space-y-3 border rounded-xl bg-destructive/5 text-destructive">
+          <p className="text-sm font-medium">Failed to load call history.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {!isLoading && !isError && calls.length === 0 && (
+        <div className="text-center py-24 px-4 space-y-4 border rounded-2xl bg-card">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+            <Phone className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-base">No calls yet</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              Start a real-time voice call with any contact directly from their 1:1 conversation.
+            </p>
+          </div>
+          <Link href="/chat">
+            <Button size="sm" className="gap-1.5 text-xs">
+              <PhoneCall className="w-3.5 h-3.5" />
+              <span>Start a conversation</span>
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {!isLoading && !isError && calls.length > 0 && (
+        <div className="space-y-2.5">
+          {calls.map((call) => (
+            <CallHistoryRow
+              key={call.id}
+              call={call}
+              currentUserId={currentUserId || ''}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
