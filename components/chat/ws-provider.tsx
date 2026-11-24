@@ -62,8 +62,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       setWsStatus(status);
     });
 
-    const unsubTyping = client.on('typing.update', (data: any) => {
-      const payload: WSTypingPayload = data?.payload ?? data;
+    const unsubTyping = client.on('typing.update', (data: unknown) => {
+      const payload: WSTypingPayload = (data as { payload?: WSTypingPayload })?.payload ?? (data as WSTypingPayload);
       if (!payload?.conversationId || !payload?.userId) return;
       const isTyping = Boolean(payload.typing ?? payload.isTyping);
       if (isTyping) {
@@ -73,8 +73,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const unsubPresence = client.on('presence.update', (data: any) => {
-      const payload: WSPresencePayload = data?.payload ?? data;
+    const unsubPresence = client.on('presence.update', (data: unknown) => {
+      const payload: WSPresencePayload = (data as { payload?: WSPresencePayload })?.payload ?? (data as WSPresencePayload);
       if (!payload?.userId) return;
       const isOnline = payload.online !== undefined
         ? payload.online
@@ -180,6 +180,41 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubRoleChanged = client.on('conversation.role_changed', (data: unknown) => {
+      const raw = data as { payload?: { conversationId?: string } };
+      const payload = raw?.payload ?? (data as { conversationId?: string });
+      if (payload?.conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['group-members', payload.conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
+    });
+
+    const unsubMemberJoined = client.on('conversation.member_joined', (data: unknown) => {
+      const raw = data as { payload?: { conversationId?: string } };
+      const payload = raw?.payload ?? (data as { conversationId?: string });
+      if (payload?.conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['group-members', payload.conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
+    });
+
+    const unsubMemberRemoved = client.on('conversation.member_removed', (data: unknown) => {
+      const raw = data as { payload?: { conversationId?: string } };
+      const payload = raw?.payload ?? (data as { conversationId?: string });
+      if (payload?.conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['group-members', payload.conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
+    });
+
+    const unsubRenamed = client.on('conversation.renamed', (data: unknown) => {
+      const raw = data as { payload?: { conversationId?: string } };
+      const payload = raw?.payload ?? (data as { conversationId?: string });
+      if (payload?.conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -188,6 +223,10 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubUnstarred();
       unsubReactionAdded();
       unsubReactionRemoved();
+      unsubRoleChanged();
+      unsubMemberJoined();
+      unsubMemberRemoved();
+      unsubRenamed();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 

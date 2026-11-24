@@ -3,6 +3,7 @@ import type {
   Conversation,
   ChatMessage,
   ConversationMember,
+  ConversationInvite,
   PublicUser,
   UserRelationship,
   BlockedUser,
@@ -115,6 +116,54 @@ export const chatApi = {
     const qs = query.toString();
     const url = `/api/chat/conversations/${conversationId}/members${qs ? `?${qs}` : ''}`;
     return apiFetch<{ data: ConversationMember[]; hasMore: boolean }>(url);
+  },
+
+  async updateMemberRole(
+    conversationId: string,
+    userId: string,
+    role: 'admin' | 'member'
+  ): Promise<{ conversationId: string; userId: string; role: 'admin' | 'member' }> {
+    const res = await apiFetch<{
+      data: { conversationId: string; userId: string; role: 'admin' | 'member' };
+    }>(`/api/chat/conversations/${conversationId}/members/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+    return res.data;
+  },
+
+  async createInvite(
+    conversationId: string,
+    params: { expiresInHours?: number; maxUses?: number } = {}
+  ): Promise<ConversationInvite> {
+    const res = await apiFetch<{ data: ConversationInvite }>(
+      `/api/chat/conversations/${conversationId}/invites`,
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }
+    );
+    return res.data;
+  },
+
+  async revokeInvite(conversationId: string, code: string): Promise<void> {
+    await apiFetch(`/api/chat/conversations/${conversationId}/invites/${code}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async listInvites(conversationId: string): Promise<ConversationInvite[]> {
+    const res = await apiFetch<{ data: ConversationInvite[] }>(
+      `/api/chat/conversations/${conversationId}/invites`
+    );
+    return res.data || [];
+  },
+
+  async joinConversation(code: string): Promise<Conversation> {
+    const res = await apiFetch<{ data: Conversation }>(`/api/chat/conversations/join/${code}`, {
+      method: 'POST',
+    });
+    return res.data;
   },
 
   async sendMessageHttp(

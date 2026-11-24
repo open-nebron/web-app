@@ -69,8 +69,18 @@ export interface ChatMessage {
 export interface ConversationMember {
   userId: string;
   joinedAt: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member';
   profile?: PublicUser | null;
+}
+
+export interface ConversationInvite {
+  code: string;
+  url: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string | null;
+  maxUses: number | null;
+  uses: number;
 }
 
 export interface PublicUser {

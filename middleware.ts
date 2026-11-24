@@ -10,7 +10,9 @@ export function middleware(request: NextRequest) {
     pathname === '/' ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/settings') ||
-    pathname.startsWith('/chat');
+    pathname.startsWith('/chat') ||
+    pathname.startsWith('/starred') ||
+    pathname.startsWith('/join');
 
   // If user has refresh_token cookie and tries to access login or register, send to root
   if (isAuthPage && refreshToken) {
@@ -19,7 +21,11 @@ export function middleware(request: NextRequest) {
 
   // If user has no refresh_token cookie and tries to access protected page, send to login
   if (isProtectedPage && !refreshToken) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    const loginUrl = new URL('/login', request.url);
+    if (pathname.startsWith('/join')) {
+      loginUrl.searchParams.set('returnTo', pathname);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

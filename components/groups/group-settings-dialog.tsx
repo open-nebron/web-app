@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MemberPicker } from './member-picker';
+import { MemberList } from './member-list';
+import { InviteDialog } from './invite-dialog';
 import { chatApi } from '@/lib/chat-api';
 import type { Conversation, ConversationMember, PublicUser } from '@/lib/chat-types';
 import { toast } from '@/components/ui/use-toast';
@@ -31,6 +33,7 @@ import {
   Crown,
   Check,
   Edit2,
+  Link2,
 } from 'lucide-react';
 
 interface GroupSettingsDialogProps {
@@ -51,6 +54,7 @@ export function GroupSettingsDialog({
   const [isEditingName, setIsEditingName] = useState(false);
   const [groupName, setGroupName] = useState(conversation.name || 'Group');
   const [isAddingMembers, setIsAddingMembers] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
   const [newMembersToAdd, setNewMembersToAdd] = useState<PublicUser[]>([]);
 
   const { data: membersData, isLoading: isLoadingMembers } = useQuery({
@@ -65,6 +69,8 @@ export function GroupSettingsDialog({
   );
   const currentMember = members.find((m) => m.userId === currentUserId);
   const isOwner = conversation.ownerId === currentUserId || currentMember?.role === 'owner';
+  const isAdmin = currentMember?.role === 'admin';
+  const canManageGroup = isOwner || isAdmin;
 
   const renameMutation = useMutation({
     mutationFn: (newName: string) => chatApi.renameGroup(conversation.id, newName),
@@ -73,11 +79,32 @@ export function GroupSettingsDialog({
       setIsEditingName(false);
       toast({ title: 'Group renamed', description: `Group is now named "${groupName}".` });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
+      const error = err as { message?: string };
       toast({
         variant: 'destructive',
         title: 'Rename failed',
-        description: err.message || 'Could not rename group',
+        description: error.message || 'Could not rename group',
+      });
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'member' }) =>
+      chatApi.updateMemberRole(conversation.id, userId, role),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['group-members', conversation.id] });
+      toast({
+        title: 'Role updated',
+        description: `Member role set to ${data.role}.`,
+      });
+    },
+    onError: (err: unknown) => {
+      const error = err as { message?: string };
+      toast({
+        variant: 'destructive',
+        title: 'Could not update role',
+        description: error.message || 'Failed to update member role',
       });
     },
   });
@@ -91,11 +118,12 @@ export function GroupSettingsDialog({
       setNewMembersToAdd([]);
       toast({ title: 'Members added', description: 'New members were added to the group.' });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
+      const error = err as { message?: string };
       toast({
         variant: 'destructive',
         title: 'Could not add members',
-        description: err.message || 'Failed to add members',
+        description: error.message || 'Failed to add members',
       });
     },
   });
@@ -113,11 +141,12 @@ export function GroupSettingsDialog({
         toast({ title: 'Member removed', description: 'Member removed from group.' });
       }
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
+      const error = err as { message?: string };
       toast({
         variant: 'destructive',
         title: 'Could not remove member',
-        description: err.message || 'Failed to remove member',
+        description: error.message || 'Failed to remove member',
       });
     },
   });
@@ -192,7 +221,7 @@ export function GroupSettingsDialog({
             ) : (
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-base">{conversation.name || 'Group'}</span>
-                {isOwner && (
+                {canManageGroup && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -213,17 +242,30 @@ export function GroupSettingsDialog({
               <Label className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
                 Members ({members.length})
               </Label>
-              {isOwner && !isAddingMembers && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setIsAddingMembers(true)}
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Add Member
-                </Button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {canManageGroup && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setIsInviting(true)}
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    Invite Link
+                  </Button>
+                )}
+                {canManageGroup && !isAddingMembers && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setIsAddingMembers(true)}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Add Member
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Add Member Drawer / Inline Picker */}
@@ -262,65 +304,16 @@ export function GroupSettingsDialog({
             )}
 
             {/* Members scrollable */}
-            <div className="max-h-56 overflow-y-auto space-y-1.5 divide-y divide-border/40">
-              {isLoadingMembers ? (
-                <p className="text-xs text-muted-foreground py-2 text-center">Loading members...</p>
-              ) : (
-                members.map((member) => {
-                  const isThisUserOwner = member.role === 'owner' || conversation.ownerId === member.userId;
-                  const isCurrent = member.userId === currentUserId;
-                  const name = member.profile?.name || member.profile?.username || member.userId;
-
-                  return (
-                    <div
-                      key={member.userId}
-                      className="flex items-center justify-between py-2 text-sm"
-                    >
-                      <UserPopover userId={member.userId}>
-                        <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={member.profile?.avatarUrl || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {(name[0] || 'U').toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-xs">
-                                {name} {isCurrent && '(You)'}
-                              </span>
-                              {isThisUserOwner && (
-                                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 gap-0.5">
-                                  <Crown className="w-2.5 h-2.5 text-amber-500" /> Owner
-                                </Badge>
-                              )}
-                            </div>
-                            {member.profile?.username && (
-                              <p className="text-[11px] text-muted-foreground">
-                                @{member.profile.username}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </UserPopover>
-
-                      {/* Remove button (Only owner can remove other members) */}
-                      {isOwner && !isCurrent && !isThisUserOwner && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                          onClick={() => removeMemberMutation.mutate(member.userId)}
-                          disabled={removeMemberMutation.isPending}
-                        >
-                          <UserMinus className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            <MemberList
+              conversation={conversation}
+              members={members}
+              currentUserId={currentUserId}
+              isLoading={isLoadingMembers}
+              onRoleChange={(userId, role) => updateRoleMutation.mutate({ userId, role })}
+              onRemoveMember={(userId) => removeMemberMutation.mutate(userId)}
+              isPendingRoleChange={updateRoleMutation.isPending}
+              isPendingRemove={removeMemberMutation.isPending}
+            />
           </div>
 
           {/* Leave Group Action */}
@@ -352,6 +345,13 @@ export function GroupSettingsDialog({
           </div>
         </div>
       </DialogContent>
+
+      <InviteDialog
+        conversationId={conversation.id}
+        conversationName={conversation.name}
+        open={isInviting}
+        onOpenChange={setIsInviting}
+      />
     </Dialog>
   );
 }

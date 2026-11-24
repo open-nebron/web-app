@@ -10,6 +10,17 @@ export function useAuth() {
   const queryClient = useQueryClient();
   const { user, status, clear } = useAuthStore();
 
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get('returnTo');
+      if (returnTo && returnTo.startsWith('/')) {
+        return returnTo;
+      }
+    }
+    return '/';
+  };
+
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: LoginFormData) => {
       return authApi.login(email, password);
@@ -20,7 +31,7 @@ export function useAuth() {
         title: 'Welcome back!',
         description: 'Successfully logged in to Nebron.',
       });
-      router.push('/');
+      router.push(getRedirectUrl());
     },
     onError: (error: { message?: string }) => {
       toast({
@@ -42,7 +53,7 @@ export function useAuth() {
         title: 'Account created!',
         description: 'Welcome to Nebron.',
       });
-      router.push('/');
+      router.push(getRedirectUrl());
     },
     onError: (error: { message?: string }) => {
       toast({
