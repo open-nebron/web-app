@@ -246,4 +246,35 @@ export const chatApi = {
       `/api/chat/starred${qs ? `?${qs}` : ''}`
     );
   },
+
+  // Message Reactions
+  async addReaction(
+    conversationId: string,
+    messageId: string,
+    emoji: string
+  ): Promise<{ reactions: import('./chat-types').ReactionSummary[] }> {
+    const encoded = encodeURIComponent(emoji);
+    const res = await apiFetch<{ data: { reactions: import('./chat-types').ReactionSummary[] } }>(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}/reactions/${encoded}`,
+      {
+        method: 'PUT',
+      }
+    );
+    return res.data;
+  },
+
+  async removeReaction(
+    conversationId: string,
+    messageId: string,
+    emoji: string
+  ): Promise<{ reactions: import('./chat-types').ReactionSummary[] }> {
+    const encoded = encodeURIComponent(emoji);
+    const res = await apiFetch<{ data: { reactions: import('./chat-types').ReactionSummary[] } }>(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}/reactions/${encoded}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    return res.data;
+  },
 };

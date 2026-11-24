@@ -29,6 +29,12 @@ export interface Conversation {
 
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -40,6 +46,7 @@ export interface ChatMessage {
   status?: MessageStatus;
   clientId?: string;
   senderProfile?: PublicUser | null;
+  reactions?: ReactionSummary[];
 }
 
 export interface ConversationMember {
@@ -178,4 +185,19 @@ export interface WSMessageUnstarredPayload {
   conversationId: string;
   messageId: string;
   at: string;
+}
+
+export interface WSReactionAddedPayload {
+  conversationId: string;
+  messageId: string;
+  emoji: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface WSReactionRemovedPayload {
+  conversationId: string;
+  messageId: string;
+  emoji: string;
+  userId: string;
 }

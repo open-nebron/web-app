@@ -167,23 +167,103 @@ export function useMessages(conversationId: string) {
   });
 
   // Handle real-time message deletion
-  useWsEvent('message.deleted', (payload: any) => {
-    const msgId = payload?.messageId || payload?.id;
+  useWsEvent('message.deleted', (payload: unknown) => {
+    const raw = payload as { payload?: { messageId?: string; id?: string; conversationId?: string } } & { messageId?: string; id?: string; conversationId?: string };
+    const data = raw?.payload || raw;
+    const msgId = data?.messageId || data?.id;
     if (!msgId) return;
-    if (payload?.conversationId && payload.conversationId !== conversationId) return;
+    if (data?.conversationId && data.conversationId !== conversationId) return;
 
-    queryClient.setQueriesData<any>(
+    queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
       { queryKey: ['messages', conversationId] },
-      (old: any) => {
+      (old) => {
         if (!old?.pages) return old;
 
-        const updatedPages = old.pages.map((page: any) => ({
+        const updatedPages = old.pages.map((page) => ({
           ...page,
           data: (page.data || []).map((m: ChatMessage) => {
             if (m.id === msgId || (m.clientId && m.clientId === msgId)) {
               return { ...m, deleted: true, body: '' };
             }
             return m;
+          }),
+        }));
+
+        return { ...old, pages: updatedPages };
+      }
+    );
+  });
+
+  // Handle real-time reaction added
+  useWsEvent('reaction.added', (payload: unknown) => {
+    const raw = payload as { payload?: import('@/lib/chat-types').WSReactionAddedPayload };
+    const data = raw?.payload ?? (payload as import('@/lib/chat-types').WSReactionAddedPayload);
+    if (!data?.conversationId || data.conversationId !== conversationId || !data.messageId || !data.emoji) {
+      return;
+    }
+
+    queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
+      { queryKey: ['messages', conversationId] },
+      (old) => {
+        if (!old?.pages) return old;
+
+        const updatedPages = old.pages.map((page) => ({
+          ...page,
+          data: (page.data || []).map((m: ChatMessage) => {
+            if (m.id !== data.messageId) return m;
+            const current = m.reactions || [];
+            const idx = current.findIndex((r) => r.emoji === data.emoji);
+            let updated: import('@/lib/chat-types').ReactionSummary[];
+            if (idx !== -1) {
+              const existing = current[idx];
+              const hasUser = existing.userIds.includes(data.userId);
+              const newUserIds = hasUser ? existing.userIds : [...existing.userIds, data.userId];
+              const newCount = hasUser ? existing.count : existing.count + 1;
+              updated = current.map((r, i) => (i === idx ? { ...r, count: newCount, userIds: newUserIds } : r));
+            } else {
+              updated = [...current, { emoji: data.emoji, count: 1, userIds: [data.userId] }];
+            }
+            return { ...m, reactions: updated };
+          }),
+        }));
+
+        return { ...old, pages: updatedPages };
+      }
+    );
+  });
+
+  // Handle real-time reaction removed
+  useWsEvent('reaction.removed', (payload: unknown) => {
+    const raw = payload as { payload?: import('@/lib/chat-types').WSReactionRemovedPayload };
+    const data = raw?.payload ?? (payload as import('@/lib/chat-types').WSReactionRemovedPayload);
+    if (!data?.conversationId || data.conversationId !== conversationId || !data.messageId || !data.emoji) {
+      return;
+    }
+
+    queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
+      { queryKey: ['messages', conversationId] },
+      (old) => {
+        if (!old?.pages) return old;
+
+        const updatedPages = old.pages.map((page) => ({
+          ...page,
+          data: (page.data || []).map((m: ChatMessage) => {
+            if (m.id !== data.messageId) return m;
+            const current = m.reactions || [];
+            const idx = current.findIndex((r) => r.emoji === data.emoji);
+            if (idx === -1) return m;
+            const existing = current[idx];
+            const hasUser = existing.userIds.includes(data.userId);
+            if (!hasUser) return m;
+            const newUserIds = existing.userIds.filter((u) => u !== data.userId);
+            const newCount = Math.max(0, existing.count - 1);
+            let updated: import('@/lib/chat-types').ReactionSummary[];
+            if (newCount === 0) {
+              updated = current.filter((_, i) => i !== idx);
+            } else {
+              updated = current.map((r, i) => (i === idx ? { ...r, count: newCount, userIds: newUserIds } : r));
+            }
+            return { ...m, reactions: updated };
           }),
         }));
 

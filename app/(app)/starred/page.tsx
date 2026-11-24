@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/use-toast';
 import { chatApi } from '@/lib/chat-api';
 import { useChatStore } from '@/lib/chat-store';
 import type { StarredMessage } from '@/lib/chat-types';
+import { MessageReactions } from '@/components/chat/message-reactions';
 
 export default function StarredMessagesPage() {
   const router = useRouter();
@@ -151,7 +152,18 @@ export default function StarredMessagesPage() {
                       Message deleted
                     </span>
                   ) : msg?.body ? (
-                    msg.body
+                    <>
+                      <div>{msg.body}</div>
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <MessageReactions
+                            conversationId={item.conversationId}
+                            messageId={item.messageId}
+                            reactions={msg.reactions}
+                          />
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <span className="italic text-muted-foreground text-xs">
                       Message preview unavailable

@@ -18,9 +18,11 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { cn } from '@/lib/utils';
-import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2 } from 'lucide-react';
+import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2, SmilePlus } from 'lucide-react';
 import { useChatStore } from '@/lib/chat-store';
 import { chatApi } from '@/lib/chat-api';
+import { MessageReactions } from './message-reactions';
+import { EmojiPicker } from './emoji-picker';
 
 interface MessageRowProps {
   message: ChatMessage;
@@ -93,14 +95,27 @@ export function MessageRow({
       setIsDeleting(true);
       await onDelete(message.id);
       setShowDeleteDialog(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: 'destructive',
         title: 'Could not delete message',
-        description: err.message || 'Failed to delete message',
+        description: err instanceof Error ? err.message : 'Failed to delete message',
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleReaction = async (emoji: string) => {
+    if (!message.id || !message.conversationId) return;
+    try {
+      await chatApi.addReaction(message.conversationId, message.id, emoji);
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not add reaction',
+        description: err instanceof Error ? err.message : 'Action failed',
+      });
     }
   };
 
@@ -138,6 +153,19 @@ export function MessageRow({
               isSelf ? 'order-first mr-1' : 'order-last ml-1'
             )}
           >
+            {/* React with emoji */}
+            <EmojiPicker onSelect={handleReaction}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+                aria-label="Add reaction"
+              >
+                <SmilePlus className="w-3.5 h-3.5" />
+              </Button>
+            </EmojiPicker>
+
             {/* Copy button */}
             {message.body && (
               <Button
@@ -251,6 +279,15 @@ export function MessageRow({
                 {isSelf && <MessageStatusIcon status={message.status} />}
               </div>
             </div>
+          )}
+
+          {/* Reaction pills row */}
+          {!message.deleted && message.id && (
+            <MessageReactions
+              conversationId={message.conversationId}
+              messageId={message.id}
+              reactions={message.reactions}
+            />
           )}
 
           {/* Retry button for failed messages */}

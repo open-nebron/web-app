@@ -1,22 +1,34 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { WsClient, type WsStatus } from '@/lib/ws-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useChatStore } from '@/lib/chat-store';
-import type { WSTypingPayload, WSPresencePayload } from '@/lib/chat-types';
+import type { WSTypingPayload, WSPresencePayload, ChatMessage, ReactionSummary } from '@/lib/chat-types';
+
+interface WsSendResult {
+  payload?: {
+    message?: ChatMessage;
+    delivered?: boolean;
+    conversationId?: string;
+    clientId?: string;
+  };
+  [key: string]: unknown;
+}
 
 interface WsContextType {
   client: WsClient;
   status: WsStatus;
-  sendMessage: (conversationId: string, body: string, clientId?: string) => Promise<any>;
-  sendRead: (conversationId: string, messageId: string) => Promise<any>;
-  sendTyping: (conversationId: string, isTyping: boolean) => Promise<any>;
+  sendMessage: (conversationId: string, body: string, clientId?: string) => Promise<WsSendResult>;
+  sendRead: (conversationId: string, messageId: string) => Promise<unknown>;
+  sendTyping: (conversationId: string, isTyping: boolean) => Promise<unknown>;
 }
 
 const WsContext = createContext<WsContextType | null>(null);
 
 export function WsProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const accessToken = useAuthStore((s) => s.accessToken);
   const authStatus = useAuthStore((s) => s.status);
   const clientRef = useRef<WsClient | null>(null);
@@ -83,14 +95,95 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubReactionAdded = client.on('reaction.added', (data: unknown) => {
+      const raw = data as { payload?: import('@/lib/chat-types').WSReactionAddedPayload };
+      const payload = raw?.payload ?? (data as import('@/lib/chat-types').WSReactionAddedPayload);
+      if (payload?.conversationId && payload?.messageId && payload?.emoji) {
+        queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
+          { queryKey: ['messages', payload.conversationId] },
+          (old) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                data: (page.data || []).map((m) => {
+                  if (m.id !== payload.messageId) return m;
+                  const currentReactions = m.reactions || [];
+                  const existingIdx = currentReactions.findIndex((r) => r.emoji === payload.emoji);
+                  let updatedReactions: ReactionSummary[];
+                  if (existingIdx !== -1) {
+                    const existing = currentReactions[existingIdx];
+                    const hasUser = existing.userIds.includes(payload.userId);
+                    const newUserIds = hasUser ? existing.userIds : [...existing.userIds, payload.userId];
+                    const newCount = hasUser ? existing.count : existing.count + 1;
+                    updatedReactions = currentReactions.map((r, idx) =>
+                      idx === existingIdx ? { ...r, count: newCount, userIds: newUserIds } : r
+                    );
+                  } else {
+                    updatedReactions = [
+                      ...currentReactions,
+                      { emoji: payload.emoji, count: 1, userIds: [payload.userId] },
+                    ];
+                  }
+                  return { ...m, reactions: updatedReactions };
+                }),
+              })),
+            };
+          }
+        );
+      }
+    });
+
+    const unsubReactionRemoved = client.on('reaction.removed', (data: unknown) => {
+      const raw = data as { payload?: import('@/lib/chat-types').WSReactionRemovedPayload };
+      const payload = raw?.payload ?? (data as import('@/lib/chat-types').WSReactionRemovedPayload);
+      if (payload?.conversationId && payload?.messageId && payload?.emoji) {
+        queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
+          { queryKey: ['messages', payload.conversationId] },
+          (old) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                data: (page.data || []).map((m) => {
+                  if (m.id !== payload.messageId) return m;
+                  const currentReactions = m.reactions || [];
+                  const existingIdx = currentReactions.findIndex((r) => r.emoji === payload.emoji);
+                  if (existingIdx === -1) return m;
+                  const existing = currentReactions[existingIdx];
+                  const hasUser = existing.userIds.includes(payload.userId);
+                  if (!hasUser) return m;
+                  const newUserIds = existing.userIds.filter((u) => u !== payload.userId);
+                  const newCount = Math.max(0, existing.count - 1);
+                  let updatedReactions: ReactionSummary[];
+                  if (newCount === 0) {
+                    updatedReactions = currentReactions.filter((_, idx) => idx !== existingIdx);
+                  } else {
+                    updatedReactions = currentReactions.map((r, idx) =>
+                      idx === existingIdx ? { ...r, count: newCount, userIds: newUserIds } : r
+                    );
+                  }
+                  return { ...m, reactions: updatedReactions };
+                }),
+              })),
+            };
+          }
+        );
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
       unsubPresence();
       unsubStarred();
       unsubUnstarred();
+      unsubReactionAdded();
+      unsubReactionRemoved();
     };
-  }, [client, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
+  }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 
   // Connect / disconnect on accessToken changes
   useEffect(() => {
