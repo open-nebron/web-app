@@ -21,24 +21,30 @@ export const voiceApi = {
   },
 
   async rejectCall(callId: string, reason = 'reject'): Promise<{ call: CallRecord }> {
-    return apiFetch<{ call: CallRecord }>(`/api/voice/calls/${callId}/reject`, {
+    const res = await apiFetch<any>(`/api/voice/calls/${callId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
+    return res?.call ? res : { call: res };
   },
 
   async endCall(callId: string): Promise<{ call: CallRecord }> {
-    return apiFetch<{ call: CallRecord }>(`/api/voice/calls/${callId}/end`, {
+    const res = await apiFetch<any>(`/api/voice/calls/${callId}/end`, {
       method: 'POST',
     });
+    return res?.call ? res : { call: res };
   },
 
   async getCall(callId: string): Promise<{ call: CallRecord }> {
-    return apiFetch<{ call: CallRecord }>(`/api/voice/calls/${callId}`);
+    const res = await apiFetch<any>(`/api/voice/calls/${callId}`);
+    return res?.call ? res : { call: res };
   },
 
   async getActiveCall(): Promise<{ call: CallRecord } | null> {
-    return apiFetch<{ call: CallRecord } | null>('/api/voice/calls/active');
+    const res = await apiFetch<any>('/api/voice/calls/active');
+    if (!res) return null;
+    if (res.call) return res;
+    return { call: res };
   },
 
   async getCallHistory(params: {
@@ -50,7 +56,12 @@ export const voiceApi = {
     if (params.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
     const url = `/api/voice/calls${qs ? `?${qs}` : ''}`;
-    return apiFetch<{ data: CallRecord[]; hasMore: boolean }>(url);
+    const res = await apiFetch<{ calls?: CallRecord[]; data?: CallRecord[]; nextCursor?: string }>(url);
+    const list = res?.calls || res?.data || [];
+    return {
+      data: list,
+      hasMore: Boolean(res?.nextCursor),
+    };
   },
 
   async refreshTokens(callId: string): Promise<RefreshTokenResponse> {
