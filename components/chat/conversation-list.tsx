@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConversationItem } from './conversation-item';
 import { CreateGroupDialog } from '@/components/groups/create-group-dialog';
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useConversations } from '@/hooks/use-conversations';
+import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
 import type { PublicUser } from '@/lib/chat-types';
 import { MessageSquarePlus, UserPlus, Users, Search, Loader2 } from 'lucide-react';
@@ -40,6 +42,13 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
     isLoading,
     isError,
   } = useConversations({ kind: filter });
+
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['conversation-requests'],
+    queryFn: () => chatApi.listRequests(),
+    staleTime: 10 * 1000,
+    refetchInterval: 15 * 1000,
+  });
 
   // Filter conversations locally based on search query
   const filteredConversations = useMemo(() => {
@@ -70,6 +79,12 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
       const res = await chatApi.createDirect(targetUser.userId);
       setStartDirectOpen(false);
       setSelectedUserForDirect([]);
+      if (res.requestState === 'pending' || res.request_state === 'pending') {
+        toast({
+          title: 'Message request sent',
+          description: 'Message request sent — awaiting acceptance',
+        });
+      }
       handleSelect(res.conversationId);
     } catch (err: any) {
       toast({
@@ -140,6 +155,24 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Message Requests Banner (if any pending) */}
+      {pendingRequests.length > 0 && (
+        <div className="px-3 pt-2 pb-1">
+          <button
+            onClick={() => router.push('/chat/requests')}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-xs font-semibold transition-colors border border-primary/20"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquarePlus className="w-4 h-4" />
+              <span>Message requests</span>
+            </div>
+            <Badge variant="default" className="h-5 px-2 text-[11px] rounded-full font-bold">
+              {pendingRequests.length}
+            </Badge>
+          </button>
+        </div>
+      )}
 
       {/* Conversation List Scrollable */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">

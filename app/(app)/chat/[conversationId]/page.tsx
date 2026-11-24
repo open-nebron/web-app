@@ -11,9 +11,11 @@ import { useConversations } from '@/hooks/use-conversations';
 import { useMessages } from '@/hooks/use-messages';
 import { useSendMessage } from '@/hooks/use-send-message';
 import { useAuthStore } from '@/lib/auth-store';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
 import { useChatStore } from '@/lib/chat-store';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import type { ChatMessage, Conversation } from '@/lib/chat-types';
 
@@ -23,6 +25,20 @@ export default function ConversationPage() {
   const conversationId = params?.conversationId as string;
   const currentUserId = useAuthStore((s) => s.user?.userId || null);
   const { setActiveConversation } = useChatStore();
+  const queryClient = useQueryClient();
+  const [isAcceptedLocally, setIsAcceptedLocally] = React.useState(false);
+  const [isActingOnRequest, setIsActingOnRequest] = React.useState(false);
+
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['conversation-requests'],
+    queryFn: () => chatApi.listRequests(),
+    staleTime: 10 * 1000,
+  });
+
+  const pendingRequest = useMemo(
+    () => pendingRequests.find((r) => r.id === conversationId),
+    [pendingRequests, conversationId]
+  );
 
   const { conversations, isLoading: isLoadingConvos } = useConversations();
   const {
@@ -50,14 +66,33 @@ export default function ConversationPage() {
     return conversations.find((c) => c.id === conversationId);
   }, [conversations, conversationId]);
 
-  // Fallback conversation object if not yet loaded in list
-  const activeConversation: Conversation = conversation || {
-    id: conversationId,
-    kind: 'direct',
-    unreadCount: 0,
-    lastMessage: null,
-    lastMessageAt: null,
-  };
+  // Fallback conversation object if not yet loaded in list or if pending request
+  const activeConversation: Conversation = useMemo(() => {
+    if (conversation) {
+      return {
+        ...conversation,
+        peerUserId: conversation.peerUserId || pendingRequest?.senderId || pendingRequest?.peerUserId,
+      };
+    }
+    if (pendingRequest) {
+      return {
+        ...pendingRequest,
+        peerUserId: pendingRequest.senderId || pendingRequest.peerUserId,
+      };
+    }
+    return {
+      id: conversationId,
+      kind: 'direct',
+      unreadCount: 0,
+      lastMessage: null,
+      lastMessageAt: null,
+    };
+  }, [conversation, pendingRequest, conversationId]);
+
+  const isPendingForMe = Boolean(
+    (pendingRequest || (conversation && (conversation.requestState === 'pending' || conversation.request_state === 'pending') && conversation.peerUserId !== currentUserId && !conversation.isPending)) &&
+    !isAcceptedLocally
+  );
 
   const isDirect = activeConversation.kind === 'direct';
   const { data: relationship } = useQuery({
@@ -97,6 +132,78 @@ export default function ConversationPage() {
     }
   };
 
+  const handleAcceptRequest = async () => {
+    try {
+      setIsActingOnRequest(true);
+      await chatApi.acceptRequest(conversationId);
+      setIsAcceptedLocally(true);
+      await queryClient.invalidateQueries({ queryKey: ['conversation-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast({
+        title: 'Message request accepted',
+        description: 'Conversation moved to your messages.',
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not accept request',
+        description: err.message || 'Action failed',
+      });
+    } finally {
+      setIsActingOnRequest(false);
+    }
+  };
+
+  const handleDeclineRequest = async () => {
+    try {
+      setIsActingOnRequest(true);
+      await chatApi.rejectRequest(conversationId);
+      await queryClient.invalidateQueries({ queryKey: ['conversation-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast({
+        title: 'Message request declined',
+      });
+      router.push('/chat/requests');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not decline request',
+        description: err.message || 'Action failed',
+      });
+    } finally {
+      setIsActingOnRequest(false);
+    }
+  };
+
+  const handleBlockRequest = async () => {
+    try {
+      setIsActingOnRequest(true);
+      const peerId = activeConversation.peerUserId;
+      if (peerId) {
+        await chatApi.blockUser(peerId);
+      }
+      await chatApi.rejectRequest(conversationId);
+      await queryClient.invalidateQueries({ queryKey: ['conversation-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      if (peerId) {
+        await queryClient.invalidateQueries({ queryKey: ['relationship', peerId] });
+      }
+      toast({
+        title: 'User blocked',
+        description: 'User blocked and request declined.',
+      });
+      router.push('/chat/requests');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not block user',
+        description: err.message || 'Action failed',
+      });
+    } finally {
+      setIsActingOnRequest(false);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Desktop Conversation Sidebar */}
@@ -107,6 +214,47 @@ export default function ConversationPage() {
       {/* Main Chat Thread */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background">
         <ConversationHeader conversation={activeConversation} />
+
+        {/* Message Request Banner */}
+        {isPendingForMe && (
+          <div className="bg-muted/80 border-b border-border/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-semibold text-foreground truncate">
+                Message request from {activeConversation.peerProfile?.name || activeConversation.peerProfile?.username || 'this user'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={handleBlockRequest}
+                disabled={isActingOnRequest}
+              >
+                Block
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8"
+                onClick={handleDeclineRequest}
+                disabled={isActingOnRequest}
+              >
+                Decline
+              </Button>
+              <Button
+                size="sm"
+                variant="default"
+                className="text-xs h-8"
+                onClick={handleAcceptRequest}
+                disabled={isActingOnRequest}
+              >
+                {isActingOnRequest ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                Accept
+              </Button>
+            </div>
+          </div>
+        )}
 
         {isLoadingMessages && messages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -131,7 +279,8 @@ export default function ConversationPage() {
         <MessageComposer
           conversationId={conversationId}
           onSend={(text) => sendMessage(text)}
-          disabled={isPeerBlocked}
+          disabled={isPeerBlocked || isPendingForMe}
+          placeholder={isPendingForMe ? 'Accept this request to reply' : undefined}
         />
       </div>
     </div>

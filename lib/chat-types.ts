@@ -19,6 +19,12 @@ export interface Conversation {
   lastMessageAt: string | null;
   // Hydrated peer profile for UI convenience
   peerProfile?: PublicUser | null;
+  // Message request state
+  requestState?: 'active' | 'pending' | 'rejected' | null;
+  request_state?: 'active' | 'pending' | 'rejected' | null;
+  isPending?: boolean;
+  senderId?: string;
+  createdAt?: string;
 }
 
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -61,6 +67,14 @@ export interface UserRelationship {
     messages: boolean;
     until?: string | null;
   };
+}
+
+export interface BlockedUser {
+  userId: string;
+  blockedAt: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
 }
 
 // WebSocket Frames

@@ -12,12 +12,14 @@ interface MessageComposerProps {
   conversationId: string;
   onSend: (text: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
 export function MessageComposer({
   conversationId,
   onSend,
   disabled = false,
+  placeholder,
 }: MessageComposerProps) {
   const { drafts, setDraft, clearDraft } = useChatStore();
   const initialDraft = drafts[conversationId] || '';
@@ -88,7 +90,12 @@ export function MessageComposer({
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder={disabled ? 'You blocked this contact. Unblock to send messages.' : 'Type a message...'}
+          placeholder={
+            placeholder ||
+            (disabled
+              ? 'You blocked this contact. Unblock to send messages.'
+              : 'Type a message...')
+          }
           disabled={disabled}
           minRows={1}
           maxRows={6}

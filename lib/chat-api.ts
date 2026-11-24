@@ -5,6 +5,7 @@ import type {
   ConversationMember,
   PublicUser,
   UserRelationship,
+  BlockedUser,
 } from './chat-types';
 
 export interface ListConversationsParams {
@@ -44,10 +45,35 @@ export const chatApi = {
     return apiFetch<{ data: ChatMessage[]; hasMore: boolean }>(url);
   },
 
-  async createDirect(peerUserId: string): Promise<{ conversationId: string }> {
-    return apiFetch<{ conversationId: string }>('/api/chat/conversations', {
+  async createDirect(peerUserId: string): Promise<{
+    conversationId: string;
+    requestState?: 'active' | 'pending' | 'rejected' | null;
+    request_state?: 'active' | 'pending' | 'rejected' | null;
+  }> {
+    return apiFetch<{
+      conversationId: string;
+      requestState?: 'active' | 'pending' | 'rejected' | null;
+      request_state?: 'active' | 'pending' | 'rejected' | null;
+    }>('/api/chat/conversations', {
       method: 'POST',
       body: JSON.stringify({ peerUserId }),
+    });
+  },
+
+  async listRequests(): Promise<Conversation[]> {
+    const res = await apiFetch<{ data: Conversation[] }>('/api/chat/conversations/requests');
+    return res.data || [];
+  },
+
+  async acceptRequest(conversationId: string): Promise<Conversation> {
+    return apiFetch<Conversation>(`/api/chat/conversations/${conversationId}/accept-request`, {
+      method: 'POST',
+    });
+  },
+
+  async rejectRequest(conversationId: string): Promise<void> {
+    await apiFetch<void>(`/api/chat/conversations/${conversationId}/reject-request`, {
+      method: 'POST',
     });
   },
 
@@ -137,6 +163,10 @@ export const chatApi = {
   // Relationships: Block / Mute
   async getRelationship(userId: string): Promise<UserRelationship> {
     return apiFetch<UserRelationship>(`/api/core/relationships/${userId}`);
+  },
+
+  async getBlockedUsers(): Promise<{ blocked: BlockedUser[] }> {
+    return apiFetch<{ blocked: BlockedUser[] }>('/api/core/relationships/blocked');
   },
 
   async blockUser(userId: string): Promise<void> {

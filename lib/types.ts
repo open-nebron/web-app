@@ -1,4 +1,5 @@
 export type UserTheme = 'light' | 'dark' | 'system';
+export type MessageRequestPolicy = 'everyone' | 'known' | 'nobody';
 
 export interface AuthUser {
   userId: string;
@@ -31,6 +32,7 @@ export interface UserProfile {
   theme: UserTheme;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  messageRequestPolicy?: MessageRequestPolicy;
   createdAt: string;
   updatedAt: string | null;
 }

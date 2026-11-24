@@ -45,6 +45,12 @@ export function ConversationItem({
 
   const isMuted = Boolean(relationship?.muted?.messages || relationship?.muted?.calls);
 
+  const isPending = Boolean(
+    conversation.isPending ||
+    conversation.requestState === 'pending' ||
+    conversation.request_state === 'pending'
+  );
+
   // Format timestamp of last message
   let formattedTime = '';
   if (conversation.lastMessageAt) {
@@ -115,14 +121,18 @@ export function ConversationItem({
             {lastMsgSnippet}
           </p>
 
-          {conversation.unreadCount > 0 && (
+          {isPending ? (
+            <span className="text-[10px] text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded shrink-0 font-medium border border-border/50">
+              Awaiting response
+            </span>
+          ) : conversation.unreadCount > 0 ? (
             <Badge
               variant="default"
               className="h-4 min-w-4 px-1.5 py-0 text-[10px] rounded-full shrink-0 flex items-center justify-center font-bold"
             >
               {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
             </Badge>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
