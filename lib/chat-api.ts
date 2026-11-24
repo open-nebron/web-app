@@ -200,4 +200,50 @@ export const chatApi = {
       body: JSON.stringify({ calls: true, messages: true }),
     });
   },
+
+  // Message Edit & Starred
+  async editMessage(
+    conversationId: string,
+    messageId: string,
+    body: string
+  ): Promise<ChatMessage> {
+    const res = await apiFetch<{ data: ChatMessage }>(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+      }
+    );
+    return res.data;
+  },
+
+  async starMessage(conversationId: string, messageId: string): Promise<void> {
+    await apiFetch(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}/star`,
+      {
+        method: 'POST',
+      }
+    );
+  },
+
+  async unstarMessage(conversationId: string, messageId: string): Promise<void> {
+    await apiFetch(
+      `/api/chat/conversations/${conversationId}/messages/${messageId}/star`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  async listStarred(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<{ data: import('./chat-types').StarredMessage[]; hasMore: boolean }> {
+    const query = new URLSearchParams();
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.before) query.set('before', params.before);
+    const qs = query.toString();
+    return apiFetch<{ data: import('./chat-types').StarredMessage[]; hasMore: boolean }>(
+      `/api/chat/starred${qs ? `?${qs}` : ''}`
+    );
+  },
 };

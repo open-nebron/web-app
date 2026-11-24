@@ -16,6 +16,9 @@ export interface ChatState {
   activeConversationId: string | null;
   wsStatus: 'connecting' | 'connected' | 'disconnected' | 'auth-failed';
   presenceByUser: Record<string, PresenceInfo>;
+  editingMessageId: string | null;
+  editingMessage: import('./chat-types').ChatMessage | null;
+  starredMessageIds: Set<string>;
 
   addTyping: (conversationId: string, userId: string) => void;
   clearTyping: (conversationId: string, userId: string) => void;
@@ -26,6 +29,12 @@ export interface ChatState {
   setWsStatus: (status: ChatState['wsStatus']) => void;
   setPresence: (userId: string, presence: PresenceInfo) => void;
   batchSetPresence: (entries: Record<string, PresenceInfo>) => void;
+  setEditingMessageId: (id: string | null) => void;
+  setEditingMessage: (msg: import('./chat-types').ChatMessage | null) => void;
+  clearEditingMessage: () => void;
+  starMessageId: (id: string) => void;
+  unstarMessageId: (id: string) => void;
+  setStarredMessageIds: (ids: string[]) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -34,6 +43,9 @@ export const useChatStore = create<ChatState>((set) => ({
   activeConversationId: null,
   wsStatus: 'disconnected',
   presenceByUser: {},
+  editingMessageId: null,
+  editingMessage: null,
+  starredMessageIds: new Set<string>(),
 
   addTyping: (conversationId, userId) =>
     set((state) => {
@@ -120,6 +132,42 @@ export const useChatStore = create<ChatState>((set) => ({
         ...entries,
       },
     })),
+
+  setEditingMessageId: (id) =>
+    set({
+      editingMessageId: id,
+    }),
+
+  setEditingMessage: (msg) =>
+    set({
+      editingMessage: msg,
+      editingMessageId: msg?.id || null,
+    }),
+
+  clearEditingMessage: () =>
+    set({
+      editingMessage: null,
+      editingMessageId: null,
+    }),
+
+  starMessageId: (id) =>
+    set((state) => {
+      const next = new Set(state.starredMessageIds);
+      next.add(id);
+      return { starredMessageIds: next };
+    }),
+
+  unstarMessageId: (id) =>
+    set((state) => {
+      const next = new Set(state.starredMessageIds);
+      next.delete(id);
+      return { starredMessageIds: next };
+    }),
+
+  setStarredMessageIds: (ids) =>
+    set({
+      starredMessageIds: new Set(ids),
+    }),
 }));
 
 // Auto-expiry interval for typing status (runs once in browser environment)

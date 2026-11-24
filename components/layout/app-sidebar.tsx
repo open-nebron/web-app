@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronUp,
   Phone,
+  Star,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -91,6 +92,18 @@ export function AppSidebar() {
                     {totalUnread > 99 ? '99+' : totalUnread}
                   </Badge>
                 )}
+              </Link>
+
+              <Link
+                href="/starred"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/starred')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Star className="h-4 w-4" />
+                <span>Starred messages</span>
               </Link>
 
               <Link

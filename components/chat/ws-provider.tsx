@@ -28,6 +28,9 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
     clearTyping,
     pruneExpiredTyping,
     setPresence,
+    starMessageId,
+    unstarMessageId,
+    setStarredMessageIds,
   } = useChatStore();
 
   if (!clientRef.current) {
@@ -64,21 +67,49 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    const unsubStarred = client.on('message.starred', (data: unknown) => {
+      const raw = data as { payload?: import('@/lib/chat-types').WSMessageStarredPayload; messageId?: string };
+      const payload = raw?.payload ?? raw;
+      if (payload?.messageId) {
+        starMessageId(payload.messageId);
+      }
+    });
+
+    const unsubUnstarred = client.on('message.unstarred', (data: unknown) => {
+      const raw = data as { payload?: import('@/lib/chat-types').WSMessageUnstarredPayload; messageId?: string };
+      const payload = raw?.payload ?? raw;
+      if (payload?.messageId) {
+        unstarMessageId(payload.messageId);
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
       unsubPresence();
+      unsubStarred();
+      unsubUnstarred();
     };
-  }, [client, setWsStatus, addTyping, clearTyping, setPresence]);
+  }, [client, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 
   // Connect / disconnect on accessToken changes
   useEffect(() => {
     if (authStatus === 'authenticated' && accessToken) {
       client.connect(accessToken);
+      // Fetch initial starred messages to populate starred cache
+      import('@/lib/chat-api').then(({ chatApi }) => {
+        chatApi.listStarred({ limit: 100 })
+          .then((res) => {
+            if (res?.data) {
+              setStarredMessageIds(res.data.map((item) => item.messageId));
+            }
+          })
+          .catch(() => {});
+      });
     } else if (authStatus === 'unauthenticated') {
       client.disconnect();
     }
-  }, [client, accessToken, authStatus]);
+  }, [client, accessToken, authStatus, setStarredMessageIds]);
 
   // Prune expired typing users every second
   useEffect(() => {

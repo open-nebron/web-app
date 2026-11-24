@@ -148,3 +148,34 @@ export interface WSConversationEventPayload {
   name?: string;
   operatorId?: string;
 }
+
+export interface StarredMessage {
+  userId: string;
+  starredAt: string;
+  conversationId: string;
+  messageId: string;
+  message: ChatMessage | null;
+}
+
+export interface WSMessageEditedPayload {
+  conversationId: string;
+  messageId: string;
+  senderId: string;
+  body: string;
+  editedAt: string;
+  message?: ChatMessage;
+}
+
+export interface WSMessageStarredPayload {
+  userId: string;
+  conversationId: string;
+  messageId: string;
+  starredAt: string;
+}
+
+export interface WSMessageUnstarredPayload {
+  userId: string;
+  conversationId: string;
+  messageId: string;
+  at: string;
+}

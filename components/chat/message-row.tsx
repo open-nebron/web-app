@@ -18,7 +18,9 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { cn } from '@/lib/utils';
-import { RotateCcw, Trash2, Loader2 } from 'lucide-react';
+import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2 } from 'lucide-react';
+import { useChatStore } from '@/lib/chat-store';
+import { chatApi } from '@/lib/chat-api';
 
 interface MessageRowProps {
   message: ChatMessage;
@@ -41,8 +43,49 @@ export function MessageRow({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const { setEditingMessage, starredMessageIds, starMessageId, unstarMessageId } = useChatStore();
+  const isStarred = Boolean(message.id && starredMessageIds.has(message.id));
+
   const time = message.createdAt ? format(new Date(message.createdAt), 'h:mm a') : '';
   const senderName = sender?.name || sender?.username || 'User';
+
+  const handleCopy = async () => {
+    if (!message.body) return;
+    try {
+      await navigator.clipboard.writeText(message.body);
+      toast({
+        title: 'Copied to clipboard',
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Could not copy to clipboard',
+      });
+    }
+  };
+
+  const handleToggleStar = async () => {
+    if (!message.id || !message.conversationId) return;
+    try {
+      if (isStarred) {
+        unstarMessageId(message.id);
+        await chatApi.unstarMessage(message.conversationId, message.id);
+      } else {
+        starMessageId(message.id);
+        await chatApi.starMessage(message.conversationId, message.id);
+      }
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not update star',
+        description: err instanceof Error ? err.message : 'Action failed',
+      });
+    }
+  };
+
+  const handleEdit = () => {
+    setEditingMessage(message);
+  };
 
   const handleConfirmDelete = async () => {
     if (!onDelete || !message.id) return;
@@ -87,19 +130,70 @@ export function MessageRow({
           </div>
         )}
 
-        {/* Hover delete button for own messages (displayed before bubble) */}
-        {isSelf && !message.deleted && onDelete && message.id && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center self-center shrink-0">
+        {/* Hover action bar (for own messages: copy, star, edit, delete; for peer: copy, star) */}
+        {!message.deleted && message.id && (
+          <div
+            className={cn(
+              'opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 self-center shrink-0',
+              isSelf ? 'order-first mr-1' : 'order-last ml-1'
+            )}
+          >
+            {/* Copy button */}
+            {message.body && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+                onClick={handleCopy}
+                aria-label="Copy message"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </Button>
+            )}
+
+            {/* Star toggle */}
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-              onClick={() => setShowDeleteDialog(true)}
-              aria-label="Delete message"
+              className={cn(
+                'h-7 w-7 rounded-full',
+                isStarred ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground hover:text-foreground'
+              )}
+              onClick={handleToggleStar}
+              aria-label={isStarred ? 'Unstar message' : 'Star message'}
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Star className={cn('w-3.5 h-3.5', isStarred && 'fill-amber-400')} />
             </Button>
+
+            {/* Edit (own messages only) */}
+            {isSelf && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+                onClick={handleEdit}
+                aria-label="Edit message"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+            )}
+
+            {/* Delete (own messages only) */}
+            {isSelf && onDelete && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                onClick={() => setShowDeleteDialog(true)}
+                aria-label="Delete message"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
         )}
 
@@ -147,6 +241,12 @@ export function MessageRow({
                   isSelf ? 'text-primary-foreground/75' : 'text-muted-foreground'
                 )}
               >
+                {isStarred && (
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" aria-label="Starred" />
+                )}
+                {message.editedAt && (
+                  <span className="text-[10px] opacity-80">(edited)</span>
+                )}
                 <span>{time}</span>
                 {isSelf && <MessageStatusIcon status={message.status} />}
               </div>

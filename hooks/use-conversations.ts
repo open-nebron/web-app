@@ -82,6 +82,35 @@ export function useConversations(params: ListConversationsParams = {}) {
     }
   });
 
+  // Handle real-time message edit to update lastMessage preview snippet
+  useWsEvent('message.edited', (payload: unknown) => {
+    const raw = payload as { payload?: Record<string, unknown>; conversationId?: string; messageId?: string; id?: string; body?: string };
+    const data = raw?.payload || raw;
+    const conversationId = data?.conversationId as string | undefined;
+    const msgId = (data?.messageId || data?.id) as string | undefined;
+    const body = data?.body as string | undefined;
+    if (!msgId) return;
+
+    queryClient.setQueriesData<Conversation[]>(
+      { queryKey: ['conversations'] },
+      (old) => {
+        if (!old) return old;
+        return old.map((c) => {
+          if ((!conversationId || c.id === conversationId) && c.lastMessage && c.lastMessage.id === msgId) {
+            return {
+              ...c,
+              lastMessage: {
+                ...c.lastMessage,
+                body: body ?? c.lastMessage.body,
+              },
+            };
+          }
+          return c;
+        });
+      }
+    );
+  });
+
   // Handle real-time message deletion to update lastMessage preview snippet
   useWsEvent('message.deleted', (payload: any) => {
     const { conversationId, messageId, id } = payload || {};

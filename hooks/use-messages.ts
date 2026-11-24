@@ -133,6 +133,39 @@ export function useMessages(conversationId: string) {
     });
   });
 
+  // Handle real-time message editing
+  useWsEvent('message.edited', (payload: unknown) => {
+    const raw = payload as { payload?: import('@/lib/chat-types').WSMessageEditedPayload; messageId?: string; id?: string; conversationId?: string; body?: string; editedAt?: string };
+    const data = raw?.payload || raw;
+    if (!data) return;
+    const msgId = 'messageId' in data && data.messageId ? data.messageId : ('id' in data ? (data as { id?: string }).id : undefined);
+    const convId = data.conversationId;
+    if (convId && convId !== conversationId) return;
+
+    queryClient.setQueriesData<{ pages: { data: ChatMessage[]; nextCursor?: string; hasMore?: boolean }[]; pageParams: unknown[] }>(
+      { queryKey: ['messages', conversationId] },
+      (old) => {
+        if (!old?.pages) return old;
+
+        const updatedPages = old.pages.map((page) => ({
+          ...page,
+          data: (page.data || []).map((m: ChatMessage) => {
+            if (m.id === msgId || (m.clientId && m.clientId === msgId)) {
+              return {
+                ...m,
+                body: data.body || m.body,
+                editedAt: data.editedAt || m.editedAt,
+              };
+            }
+            return m;
+          }),
+        }));
+
+        return { ...old, pages: updatedPages };
+      }
+    );
+  });
+
   // Handle real-time message deletion
   useWsEvent('message.deleted', (payload: any) => {
     const msgId = payload?.messageId || payload?.id;
