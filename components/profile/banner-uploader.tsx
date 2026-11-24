@@ -7,6 +7,7 @@ import { coreApi } from '@/lib/api';
 import { useProfile, PROFILE_QUERY_KEY } from '@/hooks/use-profile';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import { normalizeStorageUrl } from '@/lib/utils';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
@@ -60,7 +61,8 @@ export function BannerUploader() {
       }
       formData.append('file', file);
 
-      const uploadRes = await fetch(slot.uploadUrl, {
+      const uploadUrl = normalizeStorageUrl(slot.uploadUrl);
+      const uploadRes = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
@@ -116,7 +118,7 @@ export function BannerUploader() {
     }
   };
 
-  const displayUrl = previewUrl || profile?.bannerUrl;
+  const displayUrl = previewUrl || (profile?.bannerUrl ? normalizeStorageUrl(profile.bannerUrl) : null);
 
   return (
     <div className="space-y-3">

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { normalizeStorageUrl } from '@/lib/utils';
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -116,7 +117,7 @@ export function AppSidebar() {
                 <div className="flex items-center space-x-3 min-w-0">
                   <Avatar className="h-9 w-9">
                     {profile?.avatarUrl && (
-                      <AvatarImage src={profile.avatarUrl} alt={profile.name || profile.username} />
+                      <AvatarImage src={normalizeStorageUrl(profile.avatarUrl)} alt={profile.name || profile.username} />
                     )}
                     <AvatarFallback>{userInitial}</AvatarFallback>
                   </Avatar>

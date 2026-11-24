@@ -7,6 +7,7 @@ import { Calendar, Globe, Pencil, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import type { UserProfile } from '@/lib/types';
+import { normalizeStorageUrl } from '@/lib/utils';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -44,7 +45,7 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
         {profile.bannerUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={profile.bannerUrl}
+            src={normalizeStorageUrl(profile.bannerUrl)}
             alt="Profile Banner"
             className="w-full h-full object-cover"
           />
@@ -66,7 +67,7 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           <div className="relative inline-block">
             <Avatar className="h-28 w-28 sm:h-32 sm:w-32 border-4 border-card shadow-lg">
               {profile.avatarUrl && (
-                <AvatarImage src={profile.avatarUrl} alt={profile.name || profile.username} />
+                <AvatarImage src={normalizeStorageUrl(profile.avatarUrl)} alt={profile.name || profile.username} />
               )}
               <AvatarFallback className="text-3xl font-bold bg-muted">
                 {userInitial}

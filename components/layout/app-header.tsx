@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useProfile } from '@/hooks/use-profile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { normalizeStorageUrl } from '@/lib/utils';
 
 interface AppHeaderProps {
   title: string;
@@ -39,7 +40,7 @@ export function AppHeader({ title, actions }: AppHeaderProps) {
           ) : (
             <Avatar className="h-8 w-8">
               {profile?.avatarUrl && (
-                <AvatarImage src={profile.avatarUrl} alt={profile.name || profile.username} />
+                <AvatarImage src={normalizeStorageUrl(profile.avatarUrl)} alt={profile.name || profile.username} />
               )}
               <AvatarFallback className="text-xs">{userInitial}</AvatarFallback>
             </Avatar>

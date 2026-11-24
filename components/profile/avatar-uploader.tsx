@@ -8,6 +8,7 @@ import { useProfile, PROFILE_QUERY_KEY } from '@/hooks/use-profile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import { normalizeStorageUrl } from '@/lib/utils';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -71,7 +72,8 @@ export function AvatarUploader() {
       }
       formData.append('file', file);
 
-      const uploadRes = await fetch(slot.uploadUrl, {
+      const uploadUrl = normalizeStorageUrl(slot.uploadUrl);
+      const uploadRes = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
@@ -127,7 +129,7 @@ export function AvatarUploader() {
     }
   };
 
-  const displayUrl = previewUrl || profile?.avatarUrl;
+  const displayUrl = previewUrl || (profile?.avatarUrl ? normalizeStorageUrl(profile.avatarUrl) : null);
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-6">
