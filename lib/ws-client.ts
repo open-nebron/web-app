@@ -244,6 +244,22 @@ export class WsClient {
     if (code === 4403) {
       this.setStatus('auth-failed');
       this.emit('session-revoked', { code, reason });
+      toast({
+        variant: 'destructive',
+        title: 'Session expired',
+        description: 'Session expired, please log in again.',
+      });
+      if (typeof window !== 'undefined') {
+        import('@/lib/auth-store').then(({ useAuthStore }) => {
+          useAuthStore.getState().clear();
+          if (
+            !window.location.pathname.startsWith('/login') &&
+            !window.location.pathname.startsWith('/register')
+          ) {
+            window.location.href = '/login';
+          }
+        });
+      }
       return;
     }
 

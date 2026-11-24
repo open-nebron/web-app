@@ -5,6 +5,7 @@ import { WsProvider } from '@/components/chat/ws-provider';
 import { ChatProvider } from '@/components/chat/chat-provider';
 import { CallProvider } from '@/components/call/call-provider';
 import { SearchDialog } from '@/components/chat/search-dialog';
+import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 
 export default function AppLayout({
   children,
@@ -25,6 +26,7 @@ export default function AppLayout({
               </div>
             </div>
             <SearchDialog />
+            <KeyboardShortcutsDialog />
           </ChatProvider>
         </CallProvider>
       </WsProvider>

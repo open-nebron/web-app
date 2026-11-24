@@ -12,6 +12,7 @@ import {
   Phone,
   Star,
   Search,
+  Keyboard,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -87,6 +88,25 @@ export function AppSidebar() {
                 </div>
                 <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border rounded">
                   ⌘K
+                </kbd>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new KeyboardEvent('keydown', { key: '?', metaKey: true, bubbles: true })
+                  );
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+                aria-label="Keyboard shortcuts"
+              >
+                <div className="flex items-center space-x-3">
+                  <Keyboard className="h-4 w-4" />
+                  <span>Shortcuts</span>
+                </div>
+                <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border rounded">
+                  ⌘?
                 </kbd>
               </button>
 

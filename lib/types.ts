@@ -1,5 +1,12 @@
 export type UserTheme = 'light' | 'dark' | 'system';
 export type MessageRequestPolicy = 'everyone' | 'known' | 'nobody';
+export type PrivacyVisibility = 'everyone' | 'contacts' | 'nobody';
+
+export interface UserPrivacy {
+  showOnlineStatus: PrivacyVisibility;
+  showLastSeen: PrivacyVisibility;
+  sendReadReceipts: boolean;
+}
 
 export interface AuthUser {
   userId: string;

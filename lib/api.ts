@@ -9,6 +9,7 @@ import type {
   RefreshResponse,
   RegisterResponse,
   UserProfile,
+  UserPrivacy,
 } from './types';
 
 export class ApiError extends Error {
@@ -179,6 +180,17 @@ export const coreApi = {
 
   async updateProfile(patch: Partial<UserProfile>): Promise<UserProfile> {
     return apiFetch<UserProfile>('/api/core/me', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  async getPrivacy(): Promise<UserPrivacy> {
+    return apiFetch<UserPrivacy>('/api/core/me/privacy');
+  },
+
+  async updatePrivacy(patch: Partial<UserPrivacy>): Promise<UserPrivacy> {
+    return apiFetch<UserPrivacy>('/api/core/me/privacy', {
       method: 'PATCH',
       body: JSON.stringify(patch),
     });
