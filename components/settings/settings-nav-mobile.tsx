@@ -8,6 +8,7 @@ import {
   Globe,
   Shield,
   Bell,
+  Laptop,
   UserX,
   KeyRound,
   ChevronRight,
@@ -62,6 +63,12 @@ export function SettingsNavMobile() {
       label: 'Notifications',
       description: 'Ringtone, alerts, and sounds',
       icon: Bell,
+    },
+    {
+      href: '/settings/sessions',
+      label: 'Sessions',
+      description: 'Active devices and sign-in locations',
+      icon: Laptop,
     },
     {
       href: '/settings/blocked',

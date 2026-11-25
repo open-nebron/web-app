@@ -164,3 +164,24 @@ export interface ApiErrorResponse {
   };
 }
 
+export interface SessionDevice {
+  browser?: string;
+  os?: string;
+  deviceType?: string;
+  deviceName?: string;
+}
+
+export interface SessionItem {
+  sessionId: string;
+  userAgent?: SessionDevice | string;
+  ip?: string;
+  lastActiveAt?: string | null;
+  createdAt: string;
+  isCurrent?: boolean;
+  isActive?: boolean;
+}
+
+export interface SessionsResponse {
+  sessions: SessionItem[];
+}
+

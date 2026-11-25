@@ -9,6 +9,7 @@ import {
   Globe,
   Shield,
   Bell,
+  Laptop,
   UserX,
   KeyRound,
 } from 'lucide-react';
@@ -61,6 +62,11 @@ export function SettingsSidebar() {
       href: '/settings/notifications',
       label: 'Notifications',
       icon: Bell,
+    },
+    {
+      href: '/settings/sessions',
+      label: 'Sessions',
+      icon: Laptop,
     },
     {
       href: '/settings/blocked',

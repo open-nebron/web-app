@@ -1,4 +1,5 @@
 import { useAuthStore } from './auth-store';
+import { resetUser } from './analytics';
 import type {
   AuthUser,
   CheckUsernameResponse,
@@ -8,6 +9,7 @@ import type {
   PresignedUploadSlot,
   RefreshResponse,
   RegisterResponse,
+  SessionsResponse,
   UserProfile,
   UserPrivacy,
 } from './types';
@@ -150,6 +152,7 @@ export const authApi = {
         credentials: 'include',
       });
     } finally {
+      resetUser();
       useAuthStore.getState().clear();
     }
   },
@@ -179,6 +182,27 @@ export const authApi = {
   async me(): Promise<AuthUser> {
     return apiFetch<AuthUser>('/api/auth-cookie/me', {
       method: 'GET',
+    });
+  },
+
+  async getSessions(): Promise<SessionsResponse> {
+    return apiFetch<SessionsResponse>('/api/auth-cookie/sessions', {
+      method: 'GET',
+      credentials: 'include',
+    });
+  },
+
+  async revokeSession(sessionId: string): Promise<void> {
+    return apiFetch<void>(`/api/auth-cookie/sessions/${sessionId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  },
+
+  async revokeOtherSessions(): Promise<void> {
+    return apiFetch<void>('/api/auth-cookie/sessions', {
+      method: 'DELETE',
+      credentials: 'include',
     });
   },
 };

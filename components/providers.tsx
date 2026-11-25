@@ -10,6 +10,7 @@ import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from '@/components/ui/use-toast';
 import { BanBanner } from '@/components/auth/ban-banner';
+import { initAnalytics, identifyUser, resetUser } from '@/lib/analytics';
 
 let initAuthPromise: Promise<void> | null = null;
 
@@ -17,6 +18,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   const setStatus = useAuthStore((s) => s.setStatus);
   const setUser = useAuthStore((s) => s.setUser);
   const clear = useAuthStore((s) => s.clear);
+
+  React.useEffect(() => {
+    initAnalytics();
+  }, []);
 
   React.useEffect(() => {
     if (initAuthPromise) return;
@@ -27,8 +32,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
         await authApi.refresh();
         const me = await authApi.me();
         setUser({ userId: me.userId, email: me.email });
+        identifyUser(me.userId, me.email);
         setStatus('authenticated');
       } catch (err: unknown) {
+        resetUser();
         clear();
         const error = err as { status?: number; message?: string };
         if (error?.status === 401) {

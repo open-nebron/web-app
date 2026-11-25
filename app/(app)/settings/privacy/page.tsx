@@ -285,6 +285,33 @@ export default function PrivacySettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Product Analytics & Telemetry Privacy Notice */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Eye className="w-4 h-4 text-primary" /> Product Analytics & Telemetry
+          </CardTitle>
+          <CardDescription>
+            Transparency regarding client telemetry and analytics collection.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-3.5 rounded-xl border bg-muted/20 space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs font-semibold bg-background">
+                PostHog Analytics
+              </Badge>
+              <span className="text-xs text-muted-foreground font-medium">Privacy Guaranteed</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We use PostHog for product analytics to improve the app, detect crashes, and monitor platform performance.
+              Nebron strictly respects your privacy: <strong>no message bodies, post bodies, or comment contents are ever collected or transmitted</strong>.
+              Only high-level feature engagement metadata (such as timestamps, error codes, and session interactions) is tracked.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </SettingsSection>
   );
 }
