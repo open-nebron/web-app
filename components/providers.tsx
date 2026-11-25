@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from '@/components/ui/use-toast';
+import { BanBanner } from '@/components/auth/ban-banner';
 
 let initAuthPromise: Promise<void> | null = null;
 
@@ -49,7 +50,12 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     })();
   }, [setStatus, setUser, clear]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <BanBanner />
+      {children}
+    </>
+  );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

@@ -9,7 +9,8 @@ import { useProfile } from '@/hooks/use-profile';
 import { useDeleteComment } from '@/hooks/useComments';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Flag } from 'lucide-react';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 
 interface CommentItemProps {
   comment: Comment;
@@ -20,6 +21,7 @@ interface CommentItemProps {
 export function CommentItem({ comment, postAuthorId, className }: CommentItemProps) {
   const { data: myProfile } = useProfile();
   const deleteMutation = useDeleteComment(comment.postId);
+  const [reportOpen, setReportOpen] = React.useState(false);
 
   const isCommentAuthor = myProfile?.userId === comment.author.userId;
   const isPostAuthor = myProfile?.userId === postAuthorId;
@@ -80,24 +82,50 @@ export function CommentItem({ comment, postAuthorId, className }: CommentItemPro
             </time>
           </div>
 
-          {canDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={deleteMutation.isPending}
-              onClick={handleDelete}
-              className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="sr-only">Delete comment</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {!isCommentAuthor && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReportOpen(true);
+                }}
+                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Report comment"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span className="sr-only">Report comment</span>
+              </Button>
+            )}
+
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={deleteMutation.isPending}
+                onClick={handleDelete}
+                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="sr-only">Delete comment</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         <p className="mt-1 text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
           {comment.body}
         </p>
       </div>
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        targetType="comment"
+        targetId={comment.id}
+        targetTitle={comment.body.slice(0, 40)}
+      />
     </div>
   );
 }

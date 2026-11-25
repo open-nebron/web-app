@@ -45,6 +45,8 @@ export interface UserProfile {
   postCount?: number;
   isFollowingViewer?: boolean;
   isFollowedByViewer?: boolean;
+  isAdmin?: boolean;
+  isBanned?: boolean;
   createdAt: string;
   updatedAt: string | null;
 }

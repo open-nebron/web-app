@@ -15,6 +15,7 @@ import {
   Keyboard,
   Home,
   Compass,
+  ShieldAlert,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -205,6 +206,20 @@ export function AppSidebar() {
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
               </Link>
+
+              {profile?.isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname.startsWith('/admin')
+                      ? 'bg-destructive/15 text-destructive font-semibold'
+                      : 'text-destructive/80 hover:bg-destructive/10 hover:text-destructive'
+                  }`}
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              )}
             </nav>
           </div>
         </div>

@@ -23,6 +23,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Lightbox } from './Lightbox';
 import { CommentSheet } from './CommentSheet';
 import { SharePostDialog } from './SharePostDialog';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { Post } from '@/lib/types';
 import {
   Heart,
@@ -35,6 +36,7 @@ import {
   Pencil,
   Loader2,
   X,
+  Flag,
 } from 'lucide-react';
 
 interface PostCardProps {
@@ -58,6 +60,7 @@ export function PostCard({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -262,6 +265,19 @@ export function PostCard({
                     Share to chat
                   </DropdownMenuItem>
 
+                  {!isAuthor && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setIsReportDialogOpen(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Flag className="w-4 h-4 mr-2" />
+                        Report post
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
                   {isAuthor && (
                     <>
                       <DropdownMenuSeparator />
@@ -450,6 +466,15 @@ export function PostCard({
         post={post}
         open={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
+      />
+
+      {/* Report Post Dialog */}
+      <ReportDialog
+        open={isReportDialogOpen}
+        onOpenChange={setIsReportDialogOpen}
+        targetType="post"
+        targetId={post.id}
+        targetTitle={post.body.slice(0, 50)}
       />
     </>
   );

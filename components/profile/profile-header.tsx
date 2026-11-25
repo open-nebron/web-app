@@ -3,10 +3,11 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
-import { Calendar, Globe, Pencil, Sparkles } from 'lucide-react';
+import { Calendar, Globe, Pencil, Sparkles, Flag } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { FollowButton } from '@/components/social/FollowButton';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { UserProfile } from '@/lib/types';
 import { normalizeStorageUrl } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderProps) {
+  const [reportOpen, setReportOpen] = React.useState(false);
   const userInitial = profile.name
     ? profile.name[0].toUpperCase()
     : profile.username
@@ -95,12 +97,22 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
               </Button>
             </div>
           ) : (
-            <div className="sm:self-end">
+            <div className="sm:self-end flex items-center gap-2">
               <FollowButton
                 userId={profile.userId}
                 initialIsFollowing={profile.isFollowedByViewer}
                 initialFollowerCount={profile.followerCount}
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setReportOpen(true)}
+                className="text-muted-foreground hover:text-destructive gap-1.5"
+                title="Report user"
+              >
+                <Flag className="h-4 w-4" />
+                Report
+              </Button>
             </div>
           )}
         </div>
@@ -160,6 +172,14 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           </div>
         </div>
       </div>
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        targetType="user"
+        targetId={profile.userId}
+        targetTitle={`@${profile.username}`}
+      />
     </div>
   );
 }

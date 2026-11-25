@@ -87,8 +87,18 @@ export async function apiFetch<T = unknown>(
       const json = await response.json();
       errorData = json;
       if (json && typeof json === 'object') {
-        const errObj = json as { error?: { message?: string }; message?: string };
+        const errObj = json as {
+          error?: { message?: string; code?: string; reason?: string };
+          message?: string;
+        };
         errorMessage = errObj.error?.message || errObj.message || errorMessage;
+
+        if (errObj.error?.code === 'account_banned') {
+          useAuthStore.getState().setBanned({
+            isBanned: true,
+            reason: errObj.error.reason || null,
+          });
+        }
       }
     } catch {
       // Body not JSON

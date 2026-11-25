@@ -18,13 +18,14 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { cn } from '@/lib/utils';
-import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2, SmilePlus, Reply, Forward } from 'lucide-react';
+import { RotateCcw, Trash2, Pencil, Star, Copy, Loader2, SmilePlus, Reply, Forward, Flag } from 'lucide-react';
 import { useChatStore } from '@/lib/chat-store';
 import { chatApi } from '@/lib/chat-api';
 import { MessageReactions } from './message-reactions';
 import { EmojiPicker } from './emoji-picker';
 import { ForwardDialog } from './forward-dialog';
 import { CallInviteCard } from './call-invite-card';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 
 interface MessageRowProps {
   message: ChatMessage;
@@ -46,6 +47,7 @@ export function MessageRow({
   const { data: sender } = useUser(!isSelf ? message.senderId : undefined);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showForwardDialog, setShowForwardDialog] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { setEditingMessage, setReplyingTo, starredMessageIds, starMessageId, unstarMessageId } = useChatStore();
@@ -242,6 +244,21 @@ export function MessageRow({
               <Star className={cn('w-3.5 h-3.5', isStarred && 'fill-amber-400')} />
             </Button>
 
+            {/* Report (peer messages only) */}
+            {!isSelf && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-full"
+                onClick={() => setShowReportDialog(true)}
+                aria-label="Report message"
+                title="Report message"
+              >
+                <Flag className="w-3.5 h-3.5" />
+              </Button>
+            )}
+
             {/* Edit (own messages only) */}
             {isSelf && message.kind !== 'call_invite' && (
               <Button
@@ -436,6 +453,15 @@ export function MessageRow({
         open={showForwardDialog}
         onOpenChange={setShowForwardDialog}
         message={message}
+      />
+
+      {/* Report message dialog */}
+      <ReportDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        targetType="message"
+        targetId={`${message.conversationId}:${message.id}`}
+        targetTitle={message.body ? message.body.slice(0, 40) : 'message'}
       />
     </>
   );
