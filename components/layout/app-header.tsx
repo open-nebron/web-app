@@ -13,9 +13,10 @@ import { cn } from '@/lib/utils';
 interface AppHeaderProps {
   title: string;
   actions?: React.ReactNode;
+  leading?: React.ReactNode;
 }
 
-export function AppHeader({ title, actions }: AppHeaderProps) {
+export function AppHeader({ title, actions, leading }: AppHeaderProps) {
   const { data: profile, isLoading } = useProfile();
   const wsStatus = useWsStatus();
 
@@ -42,6 +43,7 @@ export function AppHeader({ title, actions }: AppHeaderProps) {
   return (
     <header className="h-16 border-b px-6 flex items-center justify-between bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
       <div className="flex items-center gap-3">
+        {leading}
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           {title}
         </h1>

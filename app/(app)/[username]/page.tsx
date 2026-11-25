@@ -15,9 +15,13 @@ import {
   Loader2,
 } from 'lucide-react';
 import { usePublicProfile, useProfile } from '@/hooks/use-profile';
+import { useUserPosts } from '@/hooks/usePosts';
 import { useAuthStore } from '@/lib/auth-store';
 import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
+import { FollowButton } from '@/components/social/FollowButton';
+import { PostList } from '@/components/social/PostList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,6 +46,13 @@ export default function PublicProfilePage() {
   const currentUser = useAuthStore((s) => s.user);
   const { data: myProfile } = useProfile();
   const { data: profile, isLoading, isError } = usePublicProfile(username);
+  const {
+    posts,
+    isLoading: isPostsLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useUserPosts(profile?.userId);
 
   const [isStartingChat, setIsStartingChat] = React.useState(false);
   const [showBlockDialog, setShowBlockDialog] = React.useState(false);
@@ -197,6 +208,13 @@ export default function PublicProfilePage() {
         {/* Actions bar for other users */}
         {!isSelf && (
           <div className="flex flex-wrap items-center gap-2.5">
+            <FollowButton
+              userId={profile.userId}
+              initialIsFollowing={profile.isFollowedByViewer}
+              initialFollowerCount={profile.followerCount}
+              size="sm"
+            />
+
             <Button
               onClick={handleStartChat}
               disabled={isStartingChat || isBlocked}
@@ -262,27 +280,48 @@ export default function PublicProfilePage() {
           </div>
         )}
 
-        {/* About section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">About</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {profile.about ? (
-              <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
-                {profile.about}
-              </p>
-            ) : profile.bio ? (
-              <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
-                {profile.bio}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No bio or about section provided.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Profile Content Tabs */}
+        <Tabs defaultValue="posts" className="w-full">
+          <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="about">About</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="posts" className="space-y-6">
+            <PostList
+              posts={posts}
+              isLoading={isPostsLoading}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              emptyMessage="No posts yet"
+              emptyDescription={`@${profile.username} hasn't posted anything yet.`}
+            />
+          </TabsContent>
+
+          <TabsContent value="about">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">About</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile.about ? (
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
+                    {profile.about}
+                  </p>
+                ) : profile.bio ? (
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
+                    {profile.bio}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No bio or about section provided.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Confirmation Dialog for Blocking */}

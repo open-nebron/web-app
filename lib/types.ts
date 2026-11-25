@@ -40,8 +40,48 @@ export interface UserProfile {
   avatarUrl: string | null;
   bannerUrl: string | null;
   messageRequestPolicy?: MessageRequestPolicy;
+  followerCount?: number;
+  followingCount?: number;
+  postCount?: number;
+  isFollowingViewer?: boolean;
+  isFollowedByViewer?: boolean;
   createdAt: string;
   updatedAt: string | null;
+}
+
+export interface PostAuthor {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
+export interface Post {
+  id: string;
+  body: string;
+  imageKey?: string | null;
+  imageUrl?: string | null;
+  likeCount: number;
+  commentCount: number;
+  likedByViewer: boolean;
+  createdAt: string;
+  author: PostAuthor;
+}
+
+export interface UserFollowItem {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  isFollowingViewer: boolean;
+}
+
+export interface UserSuggestionItem {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  followerCount: number;
 }
 
 export interface LanguageOption {

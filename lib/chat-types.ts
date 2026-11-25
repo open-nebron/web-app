@@ -92,6 +92,11 @@ export interface PublicUser {
   bannerUrl?: string | null;
   bio?: string | null;
   about?: string | null;
+  followerCount?: number;
+  followingCount?: number;
+  postCount?: number;
+  isFollowingViewer?: boolean;
+  isFollowedByViewer?: boolean;
   createdAt?: string;
 }
 

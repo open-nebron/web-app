@@ -4,8 +4,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Pencil, MessageSquareQuote } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
+import { useUserPosts } from '@/hooks/usePosts';
 import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
+import { PostComposer } from '@/components/social/PostComposer';
+import { PostList } from '@/components/social/PostList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +16,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
   const { data: profile, isLoading } = useProfile();
+  const {
+    posts,
+    isLoading: isPostsLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useUserPosts(profile?.userId);
 
   if (isLoading || !profile) {
     return (
@@ -48,11 +58,25 @@ export default function ProfilePage() {
       <ProfileHeader profile={profile} isOwnProfile={true} />
 
       <div className="max-w-4xl mx-auto px-6 py-6">
-        <Tabs defaultValue="about" className="w-full">
-          <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+        <Tabs defaultValue="posts" className="w-full">
+          <TabsList className="grid w-full max-w-sm grid-cols-3 mb-6">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="posts" className="space-y-6">
+            <PostComposer placeholder="Share something with your followers..." />
+            <PostList
+              posts={posts}
+              isLoading={isPostsLoading}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              emptyMessage="No posts yet"
+              emptyDescription="Your posts will appear here. Publish your first post above!"
+            />
+          </TabsContent>
 
           <TabsContent value="about" className="space-y-6">
             <Card>

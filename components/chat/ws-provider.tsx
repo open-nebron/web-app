@@ -215,6 +215,57 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubFollowed = client.on('core.user.followed', () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['followers'] });
+      queryClient.invalidateQueries({ queryKey: ['following'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['relationship'] });
+    });
+
+    const unsubUnfollowed = client.on('core.user.unfollowed', () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['followers'] });
+      queryClient.invalidateQueries({ queryKey: ['following'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['relationship'] });
+    });
+
+    const unsubPostCreated = client.on('core.post.created', () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    });
+
+    const unsubPostDeleted = client.on('core.post.deleted', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
+    const unsubPostLiked = client.on('core.post.liked', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post-likes', payload.postId] });
+      }
+    });
+
+    const unsubPostUnliked = client.on('core.post.unliked', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post-likes', payload.postId] });
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -227,6 +278,12 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubMemberJoined();
       unsubMemberRemoved();
       unsubRenamed();
+      unsubFollowed();
+      unsubUnfollowed();
+      unsubPostCreated();
+      unsubPostDeleted();
+      unsubPostLiked();
+      unsubPostUnliked();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 
