@@ -151,6 +151,9 @@ export interface WSMessageNewPayload {
     createdAt: string;
     editedAt: string | null;
     deleted: boolean;
+    forwardedFrom?: ForwardedFromInfo | null;
+    replyToId?: string | null;
+    replyTo?: MessagePreview | null;
   };
   senderId: string;
 }

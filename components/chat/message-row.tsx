@@ -200,16 +200,18 @@ export function MessageRow({
             </Button>
 
             {/* Forward */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
-              onClick={() => setShowForwardDialog(true)}
-              aria-label="Forward message"
-            >
-              <Forward className="w-3.5 h-3.5" />
-            </Button>
+            {message.kind !== 'call_invite' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-full"
+                onClick={() => setShowForwardDialog(true)}
+                aria-label="Forward message"
+              >
+                <Forward className="w-3.5 h-3.5" />
+              </Button>
+            )}
 
             {/* Copy button */}
             {message.body && message.kind !== 'call_invite' && (
@@ -354,7 +356,9 @@ export function MessageRow({
                 </div>
               )}
 
-              {message.body}
+              {message.body || (message.forwardedFrom ? (
+                <span className="italic text-xs opacity-70">(Forwarded message)</span>
+              ) : null)}
 
               {/* Timestamp & Status footer */}
               <div

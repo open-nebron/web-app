@@ -50,9 +50,14 @@ export function ForwardDialog({ open, onOpenChange, message }: ForwardDialogProp
 
     try {
       setIsSending(true);
+      const forwardedContent = message.body || '';
+      const finalBody = comment.trim()
+        ? `${comment.trim()}\n\n${forwardedContent}`
+        : forwardedContent;
+
       await chatApi.sendMessageHttp(
         selectedConvId,
-        comment.trim(),
+        finalBody,
         undefined,
         undefined,
         {
