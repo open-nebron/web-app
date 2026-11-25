@@ -6,6 +6,7 @@ import type {
   ConversationInvite,
   PublicUser,
   UserRelationship,
+  MuteState,
   BlockedUser,
 } from './chat-types';
 
@@ -222,7 +223,17 @@ export const chatApi = {
 
   // Relationships: Block / Mute
   async getRelationship(userId: string): Promise<UserRelationship> {
-    return apiFetch<UserRelationship>(`/api/core/relationships/${userId}`);
+    const res = await apiFetch<any>(`/api/core/relationships/${userId}`);
+    const muteState: MuteState = res?.mute || res?.muted || {
+      calls: false,
+      messages: false,
+      until: null,
+    };
+    return {
+      blocked: Boolean(res?.blocked),
+      mute: muteState,
+      muted: muteState,
+    };
   },
 
   async getBlockedUsers(): Promise<{ blocked: BlockedUser[] }> {
@@ -257,7 +268,6 @@ export const chatApi = {
   async unmuteUser(userId: string): Promise<void> {
     await apiFetch(`/api/core/relationships/${userId}/mute`, {
       method: 'DELETE',
-      body: JSON.stringify({ calls: true, messages: true }),
     });
   },
 

@@ -48,8 +48,9 @@ export function BlockUserMenu({ userId, userName = 'user' }: BlockUserMenuProps)
   });
 
   const isBlocked = relationship?.blocked ?? false;
-  const isMutedMessages = relationship?.muted?.messages ?? false;
-  const isMutedCalls = relationship?.muted?.calls ?? false;
+  const muteState = relationship?.mute || relationship?.muted;
+  const isMutedMessages = muteState?.messages ?? false;
+  const isMutedCalls = muteState?.calls ?? false;
 
   const toggleMuteMessagesMutation = useMutation({
     mutationFn: async () => {

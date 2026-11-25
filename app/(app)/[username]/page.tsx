@@ -65,7 +65,8 @@ export default function PublicProfilePage() {
   });
 
   const isBlocked = relationship?.blocked ?? false;
-  const isMuted = relationship?.muted?.messages ?? false;
+  const muteState = relationship?.mute || relationship?.muted;
+  const isMuted = Boolean(muteState?.messages || muteState?.calls);
 
   const toggleBlockMutation = useMutation({
     mutationFn: async () => {

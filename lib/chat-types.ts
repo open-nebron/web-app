@@ -95,13 +95,16 @@ export interface PublicUser {
   createdAt?: string;
 }
 
+export interface MuteState {
+  calls: boolean;
+  messages: boolean;
+  until?: string | null;
+}
+
 export interface UserRelationship {
   blocked: boolean;
-  muted: {
-    calls: boolean;
-    messages: boolean;
-    until?: string | null;
-  };
+  mute?: MuteState;
+  muted?: MuteState;
 }
 
 export interface BlockedUser {

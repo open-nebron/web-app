@@ -43,7 +43,8 @@ export function ConversationItem({
     staleTime: 60 * 1000,
   });
 
-  const isMuted = Boolean(relationship?.muted?.messages || relationship?.muted?.calls);
+  const muteState = relationship?.mute || relationship?.muted;
+  const isMuted = Boolean(muteState?.messages || muteState?.calls);
 
   const isPending = Boolean(
     conversation.isPending ||

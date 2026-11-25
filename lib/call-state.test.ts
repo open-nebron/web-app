@@ -208,13 +208,13 @@ describe('Call State Machine (useCallStore)', () => {
     expect(activeState.kind).toBe('active');
     if (activeState.kind === 'active') {
       expect(activeState.mode).toBe('video');
-    }
 
-    // Reconnecting preserves mode='video'
-    store.setState({
-      ...activeState,
-      kind: 'reconnecting',
-    });
+      // Reconnecting preserves mode='video'
+      store.setState({
+        ...activeState,
+        kind: 'reconnecting',
+      });
+    }
 
     const reconnectingState = useCallStore.getState().state;
     expect(reconnectingState.kind).toBe('reconnecting');
@@ -269,15 +269,15 @@ describe('Call State Machine (useCallStore)', () => {
       expect(connState.conversationId).toBe('conv-grp-1');
       expect(connState.hostId).toBe('host-1');
       expect(connState.participants).toEqual(['host-1']);
-    }
 
-    // Move to active
-    store.setState({
-      ...connState,
-      kind: 'active',
-      connectedAt: '2026-11-24T12:00:04Z',
-      participants: ['host-1', 'user-2', 'user-3'],
-    });
+      // Move to active
+      store.setState({
+        ...connState,
+        kind: 'active',
+        connectedAt: '2026-11-24T12:00:04Z',
+        participants: ['host-1', 'user-2', 'user-3'],
+      });
+    }
 
     const activeState = useCallStore.getState().state;
     expect(activeState.kind).toBe('active');
