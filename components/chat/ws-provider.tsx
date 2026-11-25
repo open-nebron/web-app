@@ -294,6 +294,18 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubPostEdited = client.on('core.post.edited', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['popular-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['my-likes'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -314,6 +326,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubPostUnliked();
       unsubCommentCreated();
       unsubCommentDeleted();
+      unsubPostEdited();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 

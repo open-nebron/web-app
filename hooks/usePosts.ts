@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { socialApi } from '@/lib/social-api';
 import { toast } from '@/components/ui/use-toast';
 import type { Post } from '@/lib/types';
@@ -83,4 +83,66 @@ export function useDeletePost() {
       });
     },
   });
+}
+
+export function useEditPost(postId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (update: { body?: string; removeImage?: boolean }) =>
+      socialApi.editPost(postId, update),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['popular-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['my-likes'] });
+      toast({
+        title: 'Post updated',
+        description: 'Your changes have been saved.',
+      });
+    },
+    onError: (error: { message?: string }) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error.message || 'Could not update post',
+      });
+    },
+  });
+}
+
+export function usePopularPosts(limit: number = 20) {
+  return useQuery<Post[]>({
+    queryKey: ['popular-posts', limit],
+    queryFn: () => socialApi.getPopularPosts(limit),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useMyLikedPosts() {
+  const query = useInfiniteQuery<Post[]>({
+    queryKey: ['my-likes'],
+    queryFn: async ({ pageParam }) => {
+      return socialApi.getMyLikedPosts({
+        limit: 20,
+        before: pageParam as string | undefined,
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length < 20) return undefined;
+      return lastPage[lastPage.length - 1].createdAt;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const posts = React.useMemo(() => {
+    return query.data?.pages.flatMap((page) => page) ?? [];
+  }, [query.data]);
+
+  return {
+    ...query,
+    posts,
+  };
 }

@@ -215,4 +215,28 @@ export const socialApi = {
     const query = sp.toString() ? `?${sp.toString()}` : '';
     return apiFetch<{ data: Post[]; hasMore: boolean }>(`/api/core/feed${query}`);
   },
+
+  async editPost(
+    id: string,
+    update: { body?: string; removeImage?: boolean }
+  ): Promise<Post> {
+    return apiFetch<Post>(`/api/core/posts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(update),
+    });
+  },
+
+  async getPopularPosts(limit: number = 20): Promise<Post[]> {
+    return apiFetch<Post[]>(`/api/core/posts/popular?limit=${limit}`);
+  },
+
+  async getMyLikedPosts(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<Post[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<Post[]>(`/api/core/users/me/likes${query}`);
+  },
 };

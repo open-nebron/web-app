@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { usePublicProfile, useProfile } from '@/hooks/use-profile';
-import { useUserPosts } from '@/hooks/usePosts';
+import { useUserPosts, useMyLikedPosts } from '@/hooks/usePosts';
 import { useAuthStore } from '@/lib/auth-store';
 import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { chatApi } from '@/lib/chat-api';
 import { toast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function PublicProfilePage() {
@@ -53,6 +54,14 @@ export default function PublicProfilePage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useUserPosts(profile?.userId);
+
+  const {
+    posts: likedPosts,
+    isLoading: isLikedPostsLoading,
+    hasNextPage: hasNextLikedPage,
+    isFetchingNextPage: isFetchingNextLikedPage,
+    fetchNextPage: fetchNextLikedPage,
+  } = useMyLikedPosts();
 
   const [isStartingChat, setIsStartingChat] = React.useState(false);
   const [showBlockDialog, setShowBlockDialog] = React.useState(false);
@@ -282,8 +291,9 @@ export default function PublicProfilePage() {
 
         {/* Profile Content Tabs */}
         <Tabs defaultValue="posts" className="w-full">
-          <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+          <TabsList className={cn("grid w-full mb-6", isSelf ? "max-w-sm grid-cols-3" : "max-w-xs grid-cols-2")}>
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            {isSelf && <TabsTrigger value="likes">Likes</TabsTrigger>}
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
@@ -298,6 +308,20 @@ export default function PublicProfilePage() {
               emptyDescription={`@${profile.username} hasn't posted anything yet.`}
             />
           </TabsContent>
+
+          {isSelf && (
+            <TabsContent value="likes" className="space-y-6">
+              <PostList
+                posts={likedPosts}
+                isLoading={isLikedPostsLoading}
+                hasNextPage={hasNextLikedPage}
+                isFetchingNextPage={isFetchingNextLikedPage}
+                fetchNextPage={fetchNextLikedPage}
+                emptyMessage="No liked posts yet"
+                emptyDescription="Posts you like on Nebron will appear here."
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="about">
             <Card>

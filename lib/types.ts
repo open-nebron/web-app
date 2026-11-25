@@ -81,6 +81,7 @@ export interface Post {
   likedByViewer: boolean;
   comments?: Comment[];
   createdAt: string;
+  updatedAt?: string | null;
   author: PostAuthor;
 }
 

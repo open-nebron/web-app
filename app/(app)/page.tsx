@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { PostComposer } from '@/components/social/PostComposer';
 import { PostList } from '@/components/social/PostList';
 import { FollowButton } from '@/components/social/FollowButton';
+import { SuggestedUsersWidget } from '@/components/social/SuggestedUsersWidget';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,7 +33,8 @@ export default function HomePage() {
     <div>
       <AppHeader title="Home" />
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-6 flex gap-8 items-start justify-center">
+        <div className="flex-1 max-w-2xl space-y-6">
         {/* Post composer at the top of feed */}
         <PostComposer
           placeholder="What's happening?"
@@ -156,6 +158,12 @@ export default function HomePage() {
             </p>
           </div>
         )}
+        </div>
+
+        {/* Right rail on desktop (hidden on mobile) */}
+        <aside className="hidden lg:block w-80 shrink-0 sticky top-6">
+          <SuggestedUsersWidget />
+        </aside>
       </div>
     </div>
   );

@@ -243,5 +243,30 @@ describe('Social API', () => {
         method: 'DELETE',
       });
     });
+
+    it('edits post via PATCH /posts/:id', async () => {
+      const mockPost = { id: 'p1', body: 'New text' };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockPost);
+      const res = await socialApi.editPost('p1', { body: 'New text', removeImage: true });
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1', {
+        method: 'PATCH',
+        body: JSON.stringify({ body: 'New text', removeImage: true }),
+      });
+      expect(res).toEqual(mockPost);
+    });
+
+    it('fetches popular posts', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce([]);
+      await socialApi.getPopularPosts(15);
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/popular?limit=15');
+    });
+
+    it('fetches viewer liked posts', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce([]);
+      await socialApi.getMyLikedPosts({ limit: 10, before: '2026-11-25T12:00:00.000Z' });
+      expect(spy).toHaveBeenCalledWith(
+        '/api/core/users/me/likes?limit=10&before=2026-11-25T12%3A00%3A00.000Z'
+      );
+    });
   });
 });

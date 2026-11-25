@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Pencil, MessageSquareQuote } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
-import { useUserPosts } from '@/hooks/usePosts';
+import { useUserPosts, useMyLikedPosts } from '@/hooks/usePosts';
 import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { PostComposer } from '@/components/social/PostComposer';
@@ -23,6 +23,14 @@ export default function ProfilePage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useUserPosts(profile?.userId);
+
+  const {
+    posts: likedPosts,
+    isLoading: isLikedPostsLoading,
+    hasNextPage: hasNextLikedPage,
+    isFetchingNextPage: isFetchingNextLikedPage,
+    fetchNextPage: fetchNextLikedPage,
+  } = useMyLikedPosts();
 
   if (isLoading || !profile) {
     return (
@@ -61,8 +69,8 @@ export default function ProfilePage() {
         <Tabs defaultValue="posts" className="w-full">
           <TabsList className="grid w-full max-w-sm grid-cols-3 mb-6">
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="likes">Likes</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="posts" className="space-y-6">
@@ -75,6 +83,18 @@ export default function ProfilePage() {
               fetchNextPage={fetchNextPage}
               emptyMessage="No posts yet"
               emptyDescription="Your posts will appear here. Publish your first post above!"
+            />
+          </TabsContent>
+
+          <TabsContent value="likes" className="space-y-6">
+            <PostList
+              posts={likedPosts}
+              isLoading={isLikedPostsLoading}
+              hasNextPage={hasNextLikedPage}
+              isFetchingNextPage={isFetchingNextLikedPage}
+              fetchNextPage={fetchNextLikedPage}
+              emptyMessage="No liked posts yet"
+              emptyDescription="Posts you like on Nebron will appear here."
             />
           </TabsContent>
 
@@ -101,21 +121,8 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="activity">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <MessageSquareQuote className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
-                <h3 className="text-base font-semibold">Coming soon</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                  Posts and social activity will appear here in phase 7a.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 }
-
