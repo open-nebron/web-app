@@ -221,6 +221,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['following'] });
       queryClient.invalidateQueries({ queryKey: ['suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['relationship'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
     });
 
     const unsubUnfollowed = client.on('core.user.unfollowed', () => {
@@ -229,11 +230,13 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['following'] });
       queryClient.invalidateQueries({ queryKey: ['suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['relationship'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
     });
 
     const unsubPostCreated = client.on('core.post.created', () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
     });
 
     const unsubPostDeleted = client.on('core.post.deleted', (data: unknown) => {
@@ -241,6 +244,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       const payload = raw?.payload ?? (data as { postId?: string });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (payload?.postId) {
         queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
       }
@@ -250,6 +254,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       const raw = data as { payload?: { postId?: string } };
       const payload = raw?.payload ?? (data as { postId?: string });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (payload?.postId) {
         queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
         queryClient.invalidateQueries({ queryKey: ['post-likes', payload.postId] });
@@ -260,6 +265,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       const raw = data as { payload?: { postId?: string } };
       const payload = raw?.payload ?? (data as { postId?: string });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (payload?.postId) {
         queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
         queryClient.invalidateQueries({ queryKey: ['post-likes', payload.postId] });

@@ -90,4 +90,14 @@ export const socialApi = {
     const query = sp.toString() ? `?${sp.toString()}` : '';
     return apiFetch<UserFollowItem[]>(`/api/core/posts/${id}/likes${query}`);
   },
+
+  async getFeed(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<{ data: Post[]; hasMore: boolean }> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<{ data: Post[]; hasMore: boolean }>(`/api/core/feed${query}`);
+  },
 };

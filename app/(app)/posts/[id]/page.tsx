@@ -17,6 +17,14 @@ export default function PostDetailPage() {
 
   const { data: post, isLoading, isError, error } = usePost(postId);
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
+
   return (
     <div>
       <AppHeader
@@ -25,7 +33,7 @@ export default function PostDetailPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="h-8 w-8 mr-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -56,9 +64,9 @@ export default function PostDetailPage() {
                 'This post may have been deleted, or is not accessible.'}
             </p>
             <Button asChild variant="outline" size="sm" className="mt-4">
-              <Link href="/profile">
+              <Link href="/">
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Return to profile
+                Return to home feed
               </Link>
             </Button>
           </div>

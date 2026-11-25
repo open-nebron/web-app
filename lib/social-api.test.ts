@@ -142,5 +142,15 @@ describe('Social API', () => {
       await socialApi.getPostLikes('p1', { limit: 30 });
       expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/likes?limit=30');
     });
+
+    it('fetches feed with pagination params', async () => {
+      const mockFeed = { data: [], hasMore: false };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockFeed);
+      const res = await socialApi.getFeed({ limit: 15, before: '2026-11-25T12:00:00.000Z' });
+      expect(spy).toHaveBeenCalledWith(
+        '/api/core/feed?limit=15&before=2026-11-25T12%3A00%3A00.000Z'
+      );
+      expect(res).toEqual(mockFeed);
+    });
   });
 });

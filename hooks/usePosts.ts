@@ -43,6 +43,7 @@ export function useCreatePost() {
     onSuccess: (newPost) => {
       queryClient.invalidateQueries({ queryKey: ['posts', newPost.author.userId] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       toast({
         title: 'Post created',
@@ -66,6 +67,7 @@ export function useDeletePost() {
     mutationFn: (postId: string) => socialApi.deletePost(postId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       toast({
         title: 'Post deleted',
