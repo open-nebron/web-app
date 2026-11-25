@@ -272,6 +272,28 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubCommentCreated = client.on('core.comment.created', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
+    const unsubCommentDeleted = client.on('core.comment.deleted', (data: unknown) => {
+      const raw = data as { payload?: { postId?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -290,6 +312,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubPostDeleted();
       unsubPostLiked();
       unsubPostUnliked();
+      unsubCommentCreated();
+      unsubCommentDeleted();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 

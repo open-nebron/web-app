@@ -152,5 +152,96 @@ describe('Social API', () => {
       );
       expect(res).toEqual(mockFeed);
     });
+
+    it('creates post with imageKey', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce({ id: 'p2' });
+      await socialApi.createPost({ body: 'Post with image', imageKey: 'posts/u1/abc.png' });
+      expect(spy).toHaveBeenCalledWith('/api/core/posts', {
+        method: 'POST',
+        body: JSON.stringify({ body: 'Post with image', imageKey: 'posts/u1/abc.png' }),
+      });
+    });
+
+    it('requests presigned image upload slot', async () => {
+      const mockSlot = {
+        uploadUrl: 'http://minio:9000/posts/u1/abc.png',
+        objectKey: 'posts/u1/abc.png',
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/png' },
+        expiresInSeconds: 300,
+      };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockSlot);
+      const res = await socialApi.getPostImageUploadUrl('image/png', 1024);
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/image/upload-url', {
+        method: 'POST',
+        body: JSON.stringify({ contentType: 'image/png', contentLength: 1024 }),
+      });
+      expect(res).toEqual(mockSlot);
+    });
+
+    it('confirms uploaded post image', async () => {
+      const mockConfirm = { verified: true, objectKey: 'posts/u1/abc.png', url: 'https://r2.nebron.app/posts/u1/abc.png' };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockConfirm);
+      const res = await socialApi.confirmPostImage('posts/u1/abc.png');
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/image/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ objectKey: 'posts/u1/abc.png' }),
+      });
+      expect(res).toEqual(mockConfirm);
+    });
+
+    it('deletes post image via DELETE /posts/image/*', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(undefined);
+      await socialApi.deletePostImage('posts/u1/abc.png');
+      expect(spy).toHaveBeenCalledWith(
+        `/api/core/posts/image/${encodeURIComponent('posts/u1/abc.png')}`,
+        { method: 'DELETE' }
+      );
+    });
+  });
+
+  describe('Comments', () => {
+    it('fetches comments with pagination params', async () => {
+      const mockComments = [
+        {
+          id: 'c1',
+          postId: 'p1',
+          body: 'Great post!',
+          createdAt: '2026-11-25T14:00:00.000Z',
+          author: { userId: 'u2', username: 'bob', name: 'Bob', avatarUrl: null },
+        },
+      ];
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockComments);
+      const res = await socialApi.getComments('p1', { limit: 10, before: '2026-11-25T15:00:00.000Z' });
+      expect(spy).toHaveBeenCalledWith(
+        '/api/core/posts/p1/comments?limit=10&before=2026-11-25T15%3A00%3A00.000Z'
+      );
+      expect(res).toEqual(mockComments);
+    });
+
+    it('creates comment with POST /posts/:id/comments', async () => {
+      const mockComment = {
+        id: 'c2',
+        postId: 'p1',
+        body: 'Awesome!',
+        createdAt: '2026-11-25T14:05:00.000Z',
+        author: { userId: 'u1', username: 'alice', name: 'Alice', avatarUrl: null },
+      };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockComment);
+      const res = await socialApi.createComment('p1', 'Awesome!');
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/comments', {
+        method: 'POST',
+        body: JSON.stringify({ body: 'Awesome!' }),
+      });
+      expect(res).toEqual(mockComment);
+    });
+
+    it('deletes comment with DELETE /comments/:id', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(undefined);
+      await socialApi.deleteComment('c2');
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c2', {
+        method: 'DELETE',
+      });
+    });
   });
 });

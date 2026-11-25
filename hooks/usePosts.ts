@@ -39,7 +39,8 @@ export function useCreatePost() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (body: string) => socialApi.createPost(body),
+    mutationFn: (payload: string | { body: string; imageKey?: string | null }) =>
+      socialApi.createPost(payload),
     onSuccess: (newPost) => {
       queryClient.invalidateQueries({ queryKey: ['posts', newPost.author.userId] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });

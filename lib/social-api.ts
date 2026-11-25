@@ -1,5 +1,13 @@
 import { apiFetch } from './api';
-import type { Post, UserFollowItem, UserSuggestionItem } from './types';
+import { normalizeStorageUrl } from './utils';
+import type {
+  Comment,
+  Post,
+  PostImageConfirmResponse,
+  PostImageUploadUrlResponse,
+  UserFollowItem,
+  UserSuggestionItem,
+} from './types';
 
 export const socialApi = {
   async follow(userId: string): Promise<void> {
@@ -40,10 +48,117 @@ export const socialApi = {
     return apiFetch<UserSuggestionItem[]>(`/api/core/users/me/suggestions?limit=${limit}`);
   },
 
-  async createPost(body: string): Promise<Post> {
+  async createPost(
+    bodyOrPayload: string | { body: string; imageKey?: string | null },
+    imageKey?: string | null
+  ): Promise<Post> {
+    const payload =
+      typeof bodyOrPayload === 'string'
+        ? { body: bodyOrPayload, ...(imageKey ? { imageKey } : {}) }
+        : bodyOrPayload;
     return apiFetch<Post>('/api/core/posts', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getPostImageUploadUrl(
+    contentType: string,
+    contentLength: number
+  ): Promise<PostImageUploadUrlResponse> {
+    return apiFetch<PostImageUploadUrlResponse>('/api/core/posts/image/upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ contentType, contentLength }),
+    });
+  },
+
+  async confirmPostImage(objectKey: string): Promise<PostImageConfirmResponse> {
+    return apiFetch<PostImageConfirmResponse>('/api/core/posts/image/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ objectKey }),
+    });
+  },
+
+  async deletePostImage(objectKey: string): Promise<void> {
+    return apiFetch<void>(`/api/core/posts/image/${encodeURIComponent(objectKey)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async uploadPostImageFile(
+    file: File,
+    onProgress?: (percent: number) => void
+  ): Promise<{ objectKey: string; url: string }> {
+    const slot = await this.getPostImageUploadUrl(file.type, file.size);
+    const uploadUrl = normalizeStorageUrl(slot.uploadUrl);
+
+    if (onProgress && typeof XMLHttpRequest !== 'undefined') {
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(slot.method || 'PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        if (slot.headers) {
+          Object.entries(slot.headers).forEach(([k, v]) => {
+            if (k.toLowerCase() !== 'content-type') {
+              xhr.setRequestHeader(k, v);
+            }
+          });
+        }
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Storage upload failed with status ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Storage upload network error'));
+        xhr.send(file);
+      });
+    } else {
+      const res = await fetch(uploadUrl, {
+        method: slot.method || 'PUT',
+        headers: {
+          'Content-Type': file.type,
+          ...(slot.headers || {}),
+        },
+        body: file,
+      });
+      if (!res.ok) {
+        throw new Error(`Storage upload failed with status ${res.status}`);
+      }
+    }
+
+    const confirmRes = await this.confirmPostImage(slot.objectKey);
+    return { objectKey: slot.objectKey, url: confirmRes.url };
+  },
+
+  async getComments(
+    postId: string,
+    params: { limit?: number; before?: string } = {}
+  ): Promise<Comment[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<Comment[]>(`/api/core/posts/${postId}/comments${query}`);
+  },
+
+  async createComment(postId: string, body: string): Promise<Comment> {
+    return apiFetch<Comment>(`/api/core/posts/${postId}/comments`, {
+      method: 'POST',
       body: JSON.stringify({ body }),
+    });
+  },
+
+  async deleteComment(commentId: string): Promise<void> {
+    return apiFetch<void>(`/api/core/comments/${commentId}`, {
+      method: 'DELETE',
     });
   },
 

@@ -56,6 +56,21 @@ export interface PostAuthor {
   avatarUrl: string | null;
 }
 
+export interface CommentAuthor {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  body: string;
+  createdAt: string;
+  author: CommentAuthor;
+}
+
 export interface Post {
   id: string;
   body: string;
@@ -64,8 +79,23 @@ export interface Post {
   likeCount: number;
   commentCount: number;
   likedByViewer: boolean;
+  comments?: Comment[];
   createdAt: string;
   author: PostAuthor;
+}
+
+export interface PostImageUploadUrlResponse {
+  uploadUrl: string;
+  objectKey: string;
+  method: string;
+  headers: Record<string, string>;
+  expiresInSeconds: number;
+}
+
+export interface PostImageConfirmResponse {
+  verified: boolean;
+  objectKey: string;
+  url: string;
 }
 
 export interface UserFollowItem {

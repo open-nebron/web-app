@@ -3,10 +3,12 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MessageSquare, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { usePost } from '@/hooks/usePost';
 import { AppHeader } from '@/components/layout/app-header';
 import { PostCard } from '@/components/social/PostCard';
+import { CommentComposer } from '@/components/social/CommentComposer';
+import { CommentList } from '@/components/social/CommentList';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -72,15 +74,23 @@ export default function PostDetailPage() {
           </div>
         ) : (
           <>
-            <PostCard post={post} />
+            <PostCard post={post} disableCommentSheet />
 
-            {/* Comments placeholder (Stage 7c) */}
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground">
-              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <h4 className="text-sm font-medium text-foreground">Comments coming soon</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Comment threads will be available in an upcoming update.
-              </p>
+            {/* Comments Section */}
+            <div className="border rounded-xl bg-card p-4 space-y-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-foreground">
+                Comments {post.commentCount > 0 ? `(${post.commentCount})` : ''}
+              </h3>
+
+              <CommentComposer postId={post.id} />
+
+              <div className="pt-2 border-t border-border/40">
+                <CommentList
+                  postId={post.id}
+                  postAuthorId={post.author.userId}
+                  initialComments={post.comments}
+                />
+              </div>
             </div>
           </>
         )}
