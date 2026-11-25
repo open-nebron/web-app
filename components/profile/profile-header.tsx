@@ -6,6 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { Calendar, Globe, Pencil, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { FollowButton } from '@/components/social/FollowButton';
 import type { UserProfile } from '@/lib/types';
 import { normalizeStorageUrl } from '@/lib/utils';
 
@@ -84,7 +85,7 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
             )}
           </div>
 
-          {isOwnProfile && (
+          {isOwnProfile ? (
             <div className="sm:self-end">
               <Button asChild variant="outline" size="sm">
                 <Link href="/profile/edit">
@@ -92,6 +93,14 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
                   Edit Profile
                 </Link>
               </Button>
+            </div>
+          ) : (
+            <div className="sm:self-end">
+              <FollowButton
+                userId={profile.userId}
+                initialIsFollowing={profile.isFollowedByViewer}
+                initialFollowerCount={profile.followerCount}
+              />
             </div>
           )}
         </div>
@@ -106,6 +115,22 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           <p className="text-sm font-medium text-muted-foreground">
             @{profile.username}
           </p>
+        </div>
+
+        {/* Stats: Posts, Followers, Following */}
+        <div className="flex items-center gap-6 mt-3 text-sm">
+          <div>
+            <span className="font-semibold text-foreground">{profile.postCount ?? 0}</span>{' '}
+            <span className="text-muted-foreground">Posts</span>
+          </div>
+          <div>
+            <span className="font-semibold text-foreground">{profile.followerCount ?? 0}</span>{' '}
+            <span className="text-muted-foreground">Followers</span>
+          </div>
+          <div>
+            <span className="font-semibold text-foreground">{profile.followingCount ?? 0}</span>{' '}
+            <span className="text-muted-foreground">Following</span>
+          </div>
         </div>
 
         {/* Bio */}

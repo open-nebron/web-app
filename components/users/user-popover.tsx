@@ -13,6 +13,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { chatApi } from '@/lib/chat-api';
 import { toast } from '@/components/ui/use-toast';
 import { MessageSquare, ShieldAlert, VolumeX, UserCheck } from 'lucide-react';
+import { FollowButton } from '@/components/social/FollowButton';
 import { BlockUserMenu } from './block-user-menu';
 
 interface UserPopoverProps {
@@ -100,27 +101,45 @@ export function UserPopover({ userId, children }: UserPopoverProps) {
               </p>
             )}
 
+            {user && (user.followerCount !== undefined || user.followingCount !== undefined) && (
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>
+                  <strong className="text-foreground">{user.followerCount ?? 0}</strong> Followers
+                </span>
+                <span>
+                  <strong className="text-foreground">{user.followingCount ?? 0}</strong> Following
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 pt-1 border-t">
               {!isSelf ? (
                 <>
+                  <FollowButton
+                    userId={userId}
+                    initialIsFollowing={user?.isFollowedByViewer}
+                    initialFollowerCount={user?.followerCount}
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                  />
                   <Button
                     size="sm"
-                    variant="default"
+                    variant="outline"
                     className="flex-1 gap-1.5 h-8 text-xs"
                     onClick={handleStartChat}
                     disabled={isStartingChat}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    {isStartingChat ? 'Opening...' : 'Send Message'}
+                    {isStartingChat ? 'Opening...' : 'Chat'}
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="flex-1 h-8 text-xs"
+                    variant="ghost"
+                    className="h-8 px-2 text-xs"
                     asChild
                     onClick={() => setOpen(false)}
                   >
-                    <Link href={`/${user?.username || ''}`}>View Profile</Link>
+                    <Link href={`/${user?.username || ''}`}>Profile</Link>
                   </Button>
                 </>
               ) : (

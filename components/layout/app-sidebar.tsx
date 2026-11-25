@@ -13,6 +13,8 @@ import {
   Star,
   Search,
   Keyboard,
+  Home,
+  Compass,
 } from 'lucide-react';
 import { useProfile } from '@/hooks/use-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -109,6 +111,30 @@ export function AppSidebar() {
                   ⌘?
                 </kbd>
               </button>
+
+              <Link
+                href="/"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Home className="h-4 w-4" />
+                <span>Home</span>
+              </Link>
+
+              <Link
+                href="/explore"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/explore')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Compass className="h-4 w-4" />
+                <span>Explore</span>
+              </Link>
 
               <Link
                 href="/chat"
