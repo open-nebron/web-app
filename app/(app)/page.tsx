@@ -7,6 +7,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { AppHeader } from '@/components/layout/app-header';
 import { PostComposer } from '@/components/social/PostComposer';
 import { PostList } from '@/components/social/PostList';
+import { StoryBar } from '@/components/stories/story-bar';
 import { FollowButton } from '@/components/social/FollowButton';
 import { SuggestedUsersWidget } from '@/components/social/SuggestedUsersWidget';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,6 +36,9 @@ export default function HomePage() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 flex gap-8 items-start justify-center">
         <div className="flex-1 max-w-2xl space-y-6">
+        {/* Stories bar at top of home feed */}
+        <StoryBar />
+
         {/* Post composer at the top of feed */}
         <PostComposer
           placeholder="What's happening?"

@@ -306,6 +306,24 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubStoryCreated = client.on('core.story.created', (data: unknown) => {
+      const raw = data as { payload?: { authorId?: string } };
+      const payload = raw?.payload ?? (data as { authorId?: string });
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      if (payload?.authorId) {
+        queryClient.invalidateQueries({ queryKey: ['user-stories', payload.authorId] });
+      }
+    });
+
+    const unsubStoryDeleted = client.on('core.story.deleted', (data: unknown) => {
+      const raw = data as { payload?: { authorId?: string } };
+      const payload = raw?.payload ?? (data as { authorId?: string });
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      if (payload?.authorId) {
+        queryClient.invalidateQueries({ queryKey: ['user-stories', payload.authorId] });
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -327,6 +345,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubCommentCreated();
       unsubCommentDeleted();
       unsubPostEdited();
+      unsubStoryCreated();
+      unsubStoryDeleted();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
 

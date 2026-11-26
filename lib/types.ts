@@ -185,3 +185,46 @@ export interface SessionsResponse {
   sessions: SessionItem[];
 }
 
+export type StoryMediaType = 'image' | 'video';
+
+export interface StoryItem {
+  id: string;
+  authorId: string;
+  mediaUrl: string;
+  mediaType: StoryMediaType;
+  thumbnailUrl?: string | null;
+  duration: number;
+  caption: string | null;
+  viewedByMe: boolean;
+  viewerCount?: number;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface StoryGroup {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  isMine: boolean;
+  stories: StoryItem[];
+  hasUnviewed: boolean;
+}
+
+export interface StoriesFeedResponse {
+  groups: StoryGroup[];
+}
+
+export interface StoryViewerItem {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  viewedAt: string;
+}
+
+export interface StoryViewersResponse {
+  viewers: StoryViewerItem[];
+  viewerCount: number;
+}
+

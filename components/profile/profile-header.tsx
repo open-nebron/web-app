@@ -3,13 +3,16 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
-import { Calendar, Globe, Pencil, Sparkles, Flag } from 'lucide-react';
+import { Calendar, Globe, Pencil, Sparkles, Flag, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { FollowButton } from '@/components/social/FollowButton';
 import { ReportDialog } from '@/components/reports/ReportDialog';
+import { StoryComposer } from '@/components/stories/story-composer';
+import { StoryViewer } from '@/components/stories/story-viewer';
+import { useUserStories } from '@/hooks/useStories';
 import type { UserProfile } from '@/lib/types';
-import { normalizeStorageUrl } from '@/lib/utils';
+import { cn, normalizeStorageUrl } from '@/lib/utils';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -18,6 +21,10 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderProps) {
   const [reportOpen, setReportOpen] = React.useState(false);
+  const [storyComposerOpen, setStoryComposerOpen] = React.useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = React.useState(false);
+  const { data: userStoryGroup } = useUserStories(profile.userId);
+  const hasActiveStories = Boolean(userStoryGroup && userStoryGroup.stories.length > 0);
   const userInitial = profile.name
     ? profile.name[0].toUpperCase()
     : profile.username
@@ -68,14 +75,37 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
       <div className="max-w-4xl mx-auto px-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-20 mb-4 gap-4">
           <div className="relative inline-block">
-            <Avatar className="h-28 w-28 sm:h-32 sm:w-32 border-4 border-card shadow-lg">
-              {profile.avatarUrl && (
-                <AvatarImage src={normalizeStorageUrl(profile.avatarUrl)} alt={profile.name || profile.username} />
+            <div
+              role={hasActiveStories ? 'button' : undefined}
+              tabIndex={hasActiveStories ? 0 : undefined}
+              onClick={() => {
+                if (hasActiveStories) setStoryViewerOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (hasActiveStories && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  setStoryViewerOpen(true);
+                }
+              }}
+              aria-label={hasActiveStories ? `View @${profile.username}'s story` : undefined}
+              data-testid="profile-avatar-story-ring"
+              data-ring={hasActiveStories ? (userStoryGroup?.hasUnviewed ? 'unviewed' : 'viewed') : 'none'}
+              className={cn(
+                'rounded-full transition-transform',
+                hasActiveStories && 'cursor-pointer hover:scale-[1.02] p-1',
+                hasActiveStories && userStoryGroup?.hasUnviewed && 'bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400',
+                hasActiveStories && !userStoryGroup?.hasUnviewed && 'bg-muted-foreground/40'
               )}
-              <AvatarFallback className="text-3xl font-bold bg-muted">
-                {userInitial}
-              </AvatarFallback>
-            </Avatar>
+            >
+              <Avatar className="h-28 w-28 sm:h-32 sm:w-32 border-4 border-card shadow-lg">
+                {profile.avatarUrl && (
+                  <AvatarImage src={normalizeStorageUrl(profile.avatarUrl)} alt={profile.name || profile.username} />
+                )}
+                <AvatarFallback className="text-3xl font-bold bg-muted">
+                  {userInitial}
+                </AvatarFallback>
+              </Avatar>
+            </div>
             {isOwnProfile && (
               <Link
                 href="/profile/edit"
@@ -88,7 +118,17 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           </div>
 
           {isOwnProfile ? (
-            <div className="sm:self-end">
+            <div className="sm:self-end flex items-center gap-2">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => setStoryComposerOpen(true)}
+                data-testid="add-to-story-btn"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add to story
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href="/profile/edit">
                   <Pencil className="mr-2 h-4 w-4" />
@@ -180,6 +220,20 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
         targetId={profile.userId}
         targetTitle={`@${profile.username}`}
       />
+
+      <StoryComposer
+        open={storyComposerOpen}
+        onOpenChange={setStoryComposerOpen}
+      />
+
+      {storyViewerOpen && userStoryGroup && userStoryGroup.stories.length > 0 && (
+        <StoryViewer
+          groups={[userStoryGroup]}
+          initialGroupIndex={0}
+          open={storyViewerOpen}
+          onClose={() => setStoryViewerOpen(false)}
+        />
+      )}
     </div>
   );
 }
