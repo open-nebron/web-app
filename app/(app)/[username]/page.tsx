@@ -21,6 +21,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { FollowButton } from '@/components/social/FollowButton';
 import { PostList } from '@/components/social/PostList';
+import { ReelGrid } from '@/components/reels/reel-grid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -291,8 +292,9 @@ export default function PublicProfilePage() {
 
         {/* Profile Content Tabs */}
         <Tabs defaultValue="posts" className="w-full">
-          <TabsList className={cn("grid w-full mb-6", isSelf ? "max-w-sm grid-cols-3" : "max-w-xs grid-cols-2")}>
+          <TabsList className={cn("grid w-full mb-6", isSelf ? "max-w-md grid-cols-4" : "max-w-sm grid-cols-3")}>
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="reels">Reels</TabsTrigger>
             {isSelf && <TabsTrigger value="likes">Likes</TabsTrigger>}
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
@@ -307,6 +309,10 @@ export default function PublicProfilePage() {
               emptyMessage="No posts yet"
               emptyDescription={`@${profile.username} hasn't posted anything yet.`}
             />
+          </TabsContent>
+
+          <TabsContent value="reels" className="space-y-6">
+            <ReelGrid userId={profile.userId} isOwnProfile={isSelf} />
           </TabsContent>
 
           {isSelf && (

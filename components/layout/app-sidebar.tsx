@@ -14,6 +14,7 @@ import {
   Search,
   Keyboard,
   Home,
+  Play,
   Compass,
   ShieldAlert,
 } from 'lucide-react';
@@ -123,6 +124,18 @@ export function AppSidebar() {
               >
                 <Home className="h-4 w-4" />
                 <span>Home</span>
+              </Link>
+
+              <Link
+                href="/reels"
+                className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/reels')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Play className="h-4 w-4" />
+                <span>Reels</span>
               </Link>
 
               <Link

@@ -228,3 +228,53 @@ export interface StoryViewersResponse {
   viewerCount: number;
 }
 
+export interface ReelAuthor {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  isFollowing: boolean;
+}
+
+export interface ReelItem {
+  id: string;
+  authorId: string;
+  caption: string | null;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  duration: number;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  likedByMe: boolean;
+  createdAt: string;
+  updatedAt: string;
+  author: ReelAuthor;
+}
+
+export interface ReelsFeedResponse {
+  items: ReelItem[];
+  nextCursor: string | null;
+}
+
+export interface ReelCommentItem {
+  id: string;
+  reelId: string;
+  targetType: 'reel';
+  body: string;
+  createdAt: string;
+  author: {
+    userId: string;
+    username: string;
+    name: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+export interface ReelLikerItem {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+

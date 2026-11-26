@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { PostComposer } from '@/components/social/PostComposer';
 import { PostList } from '@/components/social/PostList';
+import { ReelGrid } from '@/components/reels/reel-grid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,8 +68,9 @@ export default function ProfilePage() {
 
       <div className="max-w-4xl mx-auto px-6 py-6">
         <Tabs defaultValue="posts" className="w-full">
-          <TabsList className="grid w-full max-w-sm grid-cols-3 mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-4 mb-6">
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="reels">Reels</TabsTrigger>
             <TabsTrigger value="likes">Likes</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
@@ -84,6 +86,10 @@ export default function ProfilePage() {
               emptyMessage="No posts yet"
               emptyDescription="Your posts will appear here. Publish your first post above!"
             />
+          </TabsContent>
+
+          <TabsContent value="reels" className="space-y-6">
+            <ReelGrid userId={profile.userId} isOwnProfile={true} />
           </TabsContent>
 
           <TabsContent value="likes" className="space-y-6">
