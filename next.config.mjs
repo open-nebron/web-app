@@ -24,6 +24,7 @@ const nextConfig = {
       { source: '/api/core/:path*', destination: 'http://localhost:4002/:path*' },
       { source: '/api/chat/:path*', destination: 'http://localhost:4003/:path*' },
       { source: '/api/voice/:path*', destination: 'http://localhost:4004/:path*' },
+      { source: '/api/spaces/:path*', destination: 'http://localhost:4005/:path*' },
     ];
   },
 };

@@ -12,6 +12,8 @@ interface MessageListProps {
   messages: ChatMessage[];
   currentUserId: string | null;
   isGroupChat?: boolean;
+  canDeleteAny?: boolean;
+  hideReadReceipts?: boolean;
   isLoadingMore?: boolean;
   hasMore?: boolean;
   onLoadMore?: () => void;
@@ -31,6 +33,8 @@ export function MessageList({
   messages,
   currentUserId,
   isGroupChat = false,
+  canDeleteAny = false,
+  hideReadReceipts = false,
   isLoadingMore = false,
   hasMore = false,
   onLoadMore,
@@ -210,6 +214,8 @@ export function MessageList({
               messages={item.group.messages}
               isSelf={item.group.isSelf}
               isGroupChat={isGroupChat}
+              canDeleteAny={canDeleteAny}
+              hideReadReceipts={hideReadReceipts}
               onRetry={onRetry}
               onDelete={onDelete}
             />

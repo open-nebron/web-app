@@ -8,6 +8,8 @@ interface MessageGroupProps {
   messages: ChatMessage[];
   isSelf: boolean;
   isGroupChat?: boolean;
+  canDeleteAny?: boolean;
+  hideReadReceipts?: boolean;
   onRetry?: (message: ChatMessage) => void;
   onDelete?: (messageId: string) => Promise<void> | void;
 }
@@ -16,6 +18,8 @@ export function MessageGroup({
   messages,
   isSelf,
   isGroupChat = false,
+  canDeleteAny = false,
+  hideReadReceipts = false,
   onRetry,
   onDelete,
 }: MessageGroupProps) {
@@ -36,6 +40,8 @@ export function MessageGroup({
             isSelf={isSelf}
             showAvatar={showAvatar}
             showSenderName={showSenderName}
+            canDeleteAny={canDeleteAny}
+            hideReadReceipts={hideReadReceipts}
             onRetry={onRetry}
             onDelete={onDelete}
           />

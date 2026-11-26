@@ -29,6 +29,8 @@ interface WsContextType {
   ) => Promise<WsSendResult>;
   sendRead: (conversationId: string, messageId: string) => Promise<unknown>;
   sendTyping: (conversationId: string, isTyping: boolean) => Promise<unknown>;
+  subscribeChannel: (conversationId: string) => void;
+  unsubscribeChannel: (conversationId: string) => void;
 }
 
 const WsContext = createContext<WsContextType | null>(null);
@@ -384,6 +386,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       client.sendMessage(convId, body, cId, replyToId, forwardOf),
     sendRead: (convId, msgId) => client.sendRead(convId, msgId),
     sendTyping: (convId, isTyping) => client.sendTyping(convId, isTyping),
+    subscribeChannel: (convId) => client.subscribeChannel(convId),
+    unsubscribeChannel: (convId) => client.unsubscribeChannel(convId),
   };
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;

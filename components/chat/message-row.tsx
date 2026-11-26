@@ -32,6 +32,8 @@ interface MessageRowProps {
   isSelf: boolean;
   showAvatar?: boolean;
   showSenderName?: boolean;
+  canDeleteAny?: boolean;
+  hideReadReceipts?: boolean;
   onRetry?: (message: ChatMessage) => void;
   onDelete?: (messageId: string) => Promise<void> | void;
 }
@@ -41,6 +43,8 @@ export function MessageRow({
   isSelf,
   showAvatar = true,
   showSenderName = false,
+  canDeleteAny = false,
+  hideReadReceipts = false,
   onRetry,
   onDelete,
 }: MessageRowProps) {
@@ -273,8 +277,8 @@ export function MessageRow({
               </Button>
             )}
 
-            {/* Delete (own messages only) */}
-            {isSelf && onDelete && (
+            {/* Delete (own messages or moderator with MANAGE_MESSAGES) */}
+            {(isSelf || canDeleteAny) && onDelete && (
               <Button
                 type="button"
                 variant="ghost"
@@ -391,7 +395,7 @@ export function MessageRow({
                   <span className="text-[10px] opacity-80">(edited)</span>
                 )}
                 <span>{time}</span>
-                {isSelf && <MessageStatusIcon status={message.status} />}
+                {!hideReadReceipts && isSelf && <MessageStatusIcon status={message.status} />}
               </div>
             </div>
           )}

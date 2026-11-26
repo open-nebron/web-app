@@ -64,6 +64,7 @@ export class WsClient {
   private listeners: Map<string, Set<EventHandler>> = new Map();
   private pendingAcks: Map<string, PendingAck> = new Map();
   private messageQueue: QueuedFrame[] = [];
+  private subscribedChannels: Set<string> = new Set();
   private rateLimiter = new ClientRateLimiter();
   private isExplicitlyClosed = false;
   private hasTriedTokenRefreshOn4401 = false;
@@ -151,6 +152,7 @@ export class WsClient {
       this.hasTriedTokenRefreshOn4401 = false;
       this.startHeartbeat();
       this.flushQueue();
+      this.resubscribeChannels();
       this.emit('open');
     };
 
@@ -451,5 +453,46 @@ export class WsClient {
   public sendTyping(conversationId: string, isTyping: boolean): Promise<any> {
     const type = isTyping ? 'typing.start' : 'typing.stop';
     return this.send(type, { conversationId });
+  }
+
+  public subscribeChannel(conversationId: string): void {
+    if (!conversationId) return;
+    this.subscribedChannels.add(conversationId);
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      const id = 'sub-' + Math.random().toString(36).substring(2, 9);
+      try {
+        this.socket.send(
+          JSON.stringify({
+            type: 'channel.subscribe',
+            payload: { conversationId },
+            id,
+          })
+        );
+      } catch {
+        // Re-attempted on next open
+      }
+    }
+  }
+
+  public unsubscribeChannel(conversationId: string): void {
+    this.subscribedChannels.delete(conversationId);
+  }
+
+  private resubscribeChannels(): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    this.subscribedChannels.forEach((conversationId) => {
+      const id = 'sub-' + Math.random().toString(36).substring(2, 9);
+      try {
+        this.socket!.send(
+          JSON.stringify({
+            type: 'channel.subscribe',
+            payload: { conversationId },
+            id,
+          })
+        );
+      } catch {
+        // Ignore socket write error
+      }
+    });
   }
 }
