@@ -11,11 +11,15 @@ import {
   applyCommentLikeEvent,
   applyCommentRepliedEvent,
   applyCommentUpdatedEvent,
+  applyContentSharedWsEvent,
+  applySavedWsEvent,
   type CommentDeletedWsPayload,
   type CommentLikedWsPayload,
   type CommentPinnedWsPayload,
   type CommentRepliedWsPayload,
   type CommentUpdatedWsPayload,
+  type ContentSavedWsPayload,
+  type ContentSharedWsPayload,
 } from '@/lib/comment-cache';
 
 interface WsSendResult {
@@ -419,6 +423,62 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubPostSaved = client.on('core.post.saved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.postId) {
+        applySavedWsEvent(queryClient, 'post', true, payload);
+      }
+    });
+
+    const unsubPostUnsaved = client.on('core.post.unsaved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.postId) {
+        applySavedWsEvent(queryClient, 'post', false, payload);
+      }
+    });
+
+    const unsubReelSaved = client.on('core.reel.saved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.reelId) {
+        applySavedWsEvent(queryClient, 'reel', true, payload);
+      }
+    });
+
+    const unsubReelUnsaved = client.on('core.reel.unsaved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.reelId) {
+        applySavedWsEvent(queryClient, 'reel', false, payload);
+      }
+    });
+
+    const unsubCommentSaved = client.on('core.comment.saved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.commentId) {
+        applySavedWsEvent(queryClient, 'comment', true, payload);
+      }
+    });
+
+    const unsubCommentUnsaved = client.on('core.comment.unsaved', (data: unknown) => {
+      const raw = data as { payload?: ContentSavedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSavedWsPayload);
+      if (payload?.commentId) {
+        applySavedWsEvent(queryClient, 'comment', false, payload);
+      }
+    });
+
+    const unsubContentShared = client.on('core.content.shared', (data: unknown) => {
+      const raw = data as { payload?: ContentSharedWsPayload };
+      const payload = raw?.payload ?? (data as ContentSharedWsPayload);
+      if (payload?.contentId && payload?.contentType) {
+        applyContentSharedWsEvent(queryClient, payload);
+      }
+    });
+
     return () => {
       unsubStatus();
       unsubTyping();
@@ -449,6 +509,13 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubPostEdited();
       unsubStoryCreated();
       unsubStoryDeleted();
+      unsubPostSaved();
+      unsubPostUnsaved();
+      unsubReelSaved();
+      unsubReelUnsaved();
+      unsubCommentSaved();
+      unsubCommentUnsaved();
+      unsubContentShared();
     };
   }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, batchSetPresence, starMessageId, unstarMessageId]);
 

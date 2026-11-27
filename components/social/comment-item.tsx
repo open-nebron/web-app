@@ -23,8 +23,10 @@ import {
   useUnpinComment,
   type CommentTargetType,
 } from '@/hooks/useComments';
+import { useToggleCommentSave } from '@/hooks/useSaved';
 import { ReplyComposer } from './reply-composer';
 import { RichText } from './rich-text';
+import { ShareDialog } from './ShareDialog';
 import {
   TokenAutocompleteDropdown,
   useTokenComposerInput,
@@ -32,10 +34,12 @@ import {
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
 import {
+  Bookmark,
   Trash2,
   Flag,
   Heart,
   MessageSquare,
+  Share2,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -85,8 +89,10 @@ export function CommentItem({
   const pinMutation = usePinComment(resolvedTargetId);
   const unpinMutation = useUnpinComment(resolvedTargetId);
   const likeMutation = useToggleCommentLike(resolvedTargetId, resolvedTargetType);
+  const saveMutation = useToggleCommentSave();
 
   const [reportOpen, setReportOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
   const [localExpanded, setLocalExpanded] = React.useState(false);
   const [localShowReply, setLocalShowReply] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -198,6 +204,15 @@ export function CommentItem({
     });
   };
 
+  const handleToggleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDeletedPlaceholder || saveMutation.isPending) return;
+    saveMutation.mutate({
+      commentId: comment.id,
+      currentlySaved: Boolean(comment.savedByViewer),
+    });
+  };
+
   const authorInitials = (comment.author.name || comment.author.username || 'U')
     .slice(0, 2)
     .toUpperCase();
@@ -212,6 +227,9 @@ export function CommentItem({
 
   const likeCount = comment.likeCount ?? 0;
   const replyCount = comment.replyCount ?? 0;
+  const saveCount = comment.saveCount ?? 0;
+  const shareCount = comment.shareCount ?? 0;
+  const isSaved = Boolean(comment.savedByViewer);
 
   // Chronological ASC ordering when viewing expanded replies
   const expandedReplies = React.useMemo(() => {
@@ -232,6 +250,7 @@ export function CommentItem({
 
   return (
     <div
+      id={`comment-${comment.id}`}
       data-testid={
         resolvedTargetType === 'reel'
           ? `reel-comment-item-${comment.id}`
@@ -496,6 +515,36 @@ export function CommentItem({
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>Reply</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                data-testid={`comment-share-btn-${comment.id}`}
+                aria-label="Share comment"
+                className="inline-flex items-center gap-1 transition-colors hover:text-primary"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                {shareCount > 0 && (
+                  <span data-testid={`comment-share-count-${comment.id}`}>{shareCount}</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleSave}
+                disabled={saveMutation.isPending}
+                data-testid={`comment-save-btn-${comment.id}`}
+                aria-label={isSaved ? 'Unsave comment' : 'Save comment'}
+                className={cn(
+                  'inline-flex items-center gap-1 transition-colors hover:text-primary ml-auto',
+                  isSaved && 'text-primary font-medium'
+                )}
+              >
+                <Bookmark className={cn('w-3.5 h-3.5', isSaved && 'fill-primary text-primary')} />
+                {saveCount > 0 && (
+                  <span data-testid={`comment-save-count-${comment.id}`}>{saveCount}</span>
+                )}
+              </button>
             </div>
           )}
 
@@ -569,6 +618,16 @@ export function CommentItem({
         targetType="comment"
         targetId={comment.id}
         targetTitle={comment.body.slice(0, 40)}
+      />
+
+      <ShareDialog
+        contentType="comment"
+        contentId={comment.id}
+        parentId={resolvedTargetId}
+        parentType={resolvedTargetType}
+        previewText={comment.body}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
       />
     </div>
   );

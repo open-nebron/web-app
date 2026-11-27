@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useLike } from '@/hooks/useLike';
+import { useTogglePostSave, useShareContent } from '@/hooks/useSaved';
 import { useProfile } from '@/hooks/use-profile';
 import { useDeletePost, useEditPost } from '@/hooks/usePosts';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
@@ -27,6 +28,7 @@ import { RichText } from './rich-text';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { Post } from '@/lib/types';
 import {
+  Bookmark,
   Heart,
   MessageCircle,
   Share2,
@@ -73,6 +75,12 @@ export function PostCard({
     post.likedByViewer,
     post.likeCount
   );
+  const saveMutation = useTogglePostSave();
+  const shareMutation = useShareContent();
+
+  const isSaved = Boolean(post.savedByViewer);
+  const saveCount = post.saveCount ?? 0;
+  const shareCount = post.shareCount ?? 0;
 
   const isAuthor = myProfile?.userId === post.author.userId;
 
@@ -118,7 +126,13 @@ export function PostCard({
       e.stopPropagation();
       e.preventDefault();
     }
-    const url = `${window.location.origin}/posts/${post.id}`;
+    let url = `${window.location.origin}/posts/${post.id}`;
+    try {
+      const tracked = await shareMutation.mutateAsync({ contentType: 'post', contentId: post.id });
+      if (tracked?.url) url = tracked.url;
+    } catch {
+      // Fallback to local URL
+    }
     try {
       await navigator.clipboard.writeText(url);
       toast({
@@ -132,6 +146,13 @@ export function PostCard({
         variant: 'destructive',
       });
     }
+  };
+
+  const handleToggleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (saveMutation.isPending) return;
+    saveMutation.mutate({ postId: post.id, currentlySaved: isSaved });
   };
 
   const handleOpenShareToChat = (e: React.MouseEvent) => {
@@ -431,10 +452,36 @@ export function PostCard({
                   <button
                     type="button"
                     onClick={handleOpenShareToChat}
+                    data-testid={`post-share-btn-${post.id}`}
+                    aria-label="Share post"
                     className="flex items-center gap-1.5 text-xs transition-colors hover:text-primary group"
                   >
                     <Share2 className="w-4 h-4 transition-transform group-hover:scale-110" />
-                    <span>Share</span>
+                    <span data-testid={`post-share-count-${post.id}`}>
+                      {shareCount > 0 ? shareCount : 'Share'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleSave}
+                    disabled={saveMutation.isPending}
+                    data-testid={`post-save-btn-${post.id}`}
+                    aria-label={isSaved ? 'Unsave post' : 'Save post'}
+                    className={cn(
+                      'ml-auto flex items-center gap-1.5 text-xs transition-colors hover:text-primary group',
+                      isSaved && 'text-primary font-semibold'
+                    )}
+                  >
+                    <Bookmark
+                      className={cn(
+                        'w-4 h-4 transition-transform group-hover:scale-110',
+                        isSaved && 'fill-primary text-primary'
+                      )}
+                    />
+                    {saveCount > 0 && (
+                      <span data-testid={`post-save-count-${post.id}`}>{saveCount}</span>
+                    )}
                   </button>
                 </div>
               </>

@@ -88,7 +88,11 @@ export interface Comment {
   body: string;
   likeCount?: number;
   replyCount?: number;
+  saveCount?: number;
+  shareCount?: number;
   likedByViewer?: boolean;
+  savedByViewer?: boolean;
+  savedAt?: string;
   pinned?: boolean;
   pinnedAt?: string | null;
   editedAt?: string | null;
@@ -110,11 +114,22 @@ export interface Post {
   hashtags?: string[];
   likeCount: number;
   commentCount: number;
+  saveCount?: number;
+  shareCount?: number;
   likedByViewer: boolean;
+  savedByViewer?: boolean;
+  savedAt?: string;
   comments?: Comment[];
   createdAt: string;
   updatedAt?: string | null;
   author: PostAuthor;
+}
+
+export type ShareContentType = 'post' | 'reel' | 'comment';
+
+export interface ShareContentResponse {
+  url: string;
+  shareCount: number;
 }
 
 export interface TrendingHashtag {
@@ -293,7 +308,11 @@ export interface ReelItem {
   viewCount: number;
   likeCount: number;
   commentCount: number;
+  saveCount?: number;
+  shareCount?: number;
   likedByMe: boolean;
+  savedByViewer?: boolean;
+  savedAt?: string;
   createdAt: string;
   updatedAt: string;
   author: ReelAuthor;
@@ -314,7 +333,11 @@ export interface ReelCommentItem {
   body: string;
   likeCount?: number;
   replyCount?: number;
+  saveCount?: number;
+  shareCount?: number;
   likedByViewer?: boolean;
+  savedByViewer?: boolean;
+  savedAt?: string;
   deleted?: boolean;
   createdAt: string;
   author: {

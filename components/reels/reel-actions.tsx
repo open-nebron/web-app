@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Heart, MessageCircle, Share2, Eye, Trash2, Loader2 } from 'lucide-react';
+import { Bookmark, Heart, MessageCircle, Share2, Eye, Trash2, Loader2 } from 'lucide-react';
 import { useToggleReelLike, useDeleteReel } from '@/hooks/useReels';
-import { toast } from '@/components/ui/use-toast';
+import { useToggleReelSave } from '@/hooks/useSaved';
+import { ShareDialog } from '@/components/social/ShareDialog';
 import {
   Dialog,
   DialogContent,
@@ -24,32 +25,29 @@ interface ReelActionsProps {
 
 export function ReelActions({ reel, isOwn, onOpenComments }: ReelActionsProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
   const toggleLike = useToggleReelLike();
+  const toggleSave = useToggleReelSave();
   const deleteReel = useDeleteReel();
+
+  const isSaved = Boolean(reel.savedByViewer);
+  const saveCount = reel.saveCount ?? 0;
+  const shareCount = reel.shareCount ?? 0;
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleLike.mutate({ reelId: reel.id, likedByMe: reel.likedByMe });
   };
 
-  const handleShare = async (e: React.MouseEvent) => {
+  const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl =
-      typeof window !== 'undefined' ? `${window.location.origin}/reels/${reel.id}` : `/reels/${reel.id}`;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-      }
-      toast({
-        title: 'Link copied',
-        description: 'Reel link copied to clipboard.',
-      });
-    } catch {
-      toast({
-        title: 'Share link ready',
-        description: shareUrl,
-      });
-    }
+    if (toggleSave.isPending) return;
+    toggleSave.mutate({ reelId: reel.id, currentlySaved: isSaved });
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShareOpen(true);
   };
 
   const handleDelete = async () => {
@@ -122,16 +120,49 @@ export function ReelActions({ reel, isOwn, onOpenComments }: ReelActionsProps) {
           </span>
         </div>
 
+        {/* Bookmark / Save button */}
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={toggleSave.isPending}
+            data-testid="reel-save-btn"
+            aria-label={isSaved ? 'Unsave reel' : 'Save reel'}
+            className="p-2.5 rounded-full bg-black/45 hover:bg-black/65 transition-colors backdrop-blur-sm"
+          >
+            <Bookmark
+              className={cn(
+                'w-6 h-6 transition-transform',
+                isSaved ? 'fill-primary text-primary scale-110' : 'text-white'
+              )}
+            />
+          </button>
+          <span
+            data-testid="reel-save-count"
+            className="text-xs font-semibold drop-shadow"
+          >
+            {saveCount}
+          </span>
+        </div>
+
         {/* Share button */}
-        <button
-          type="button"
-          onClick={handleShare}
-          data-testid="reel-share-btn"
-          aria-label="Copy reel link"
-          className="p-2.5 rounded-full bg-black/45 hover:bg-black/65 transition-colors backdrop-blur-sm"
-        >
-          <Share2 className="w-5 h-5 text-white" />
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={handleShare}
+            data-testid="reel-share-btn"
+            aria-label="Share reel"
+            className="p-2.5 rounded-full bg-black/45 hover:bg-black/65 transition-colors backdrop-blur-sm"
+          >
+            <Share2 className="w-5 h-5 text-white" />
+          </button>
+          <span
+            data-testid="reel-share-count"
+            className="text-xs font-semibold drop-shadow"
+          >
+            {shareCount}
+          </span>
+        </div>
 
         {/* Delete button (owner only) */}
         {isOwn && (
@@ -179,6 +210,14 @@ export function ReelActions({ reel, isOwn, onOpenComments }: ReelActionsProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ShareDialog
+        contentType="reel"
+        contentId={reel.id}
+        previewText={reel.caption ?? undefined}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
     </>
   );
 }

@@ -352,4 +352,26 @@ export const reelsApi = {
       method: 'DELETE',
     });
   },
+
+  async saveReel(id: string): Promise<void> {
+    await apiFetch<void>(`/api/core/reels/${encodeURIComponent(id)}/save`, {
+      method: 'POST',
+    });
+  },
+
+  async unsaveReel(id: string): Promise<void> {
+    await apiFetch<void>(`/api/core/reels/${encodeURIComponent(id)}/save`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getSavedReels(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<ReelItem[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<ReelItem[]>(`/api/core/users/me/saved/reels${query}`);
+  },
 };

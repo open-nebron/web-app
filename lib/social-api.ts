@@ -6,6 +6,8 @@ import type {
   Post,
   PostImageConfirmResponse,
   PostImageUploadUrlResponse,
+  ShareContentResponse,
+  ShareContentType,
   TrendingHashtag,
   UserFollowItem,
   UserSuggestionItem,
@@ -338,5 +340,59 @@ export const socialApi = {
     if (params.before) sp.set('before', params.before);
     const query = sp.toString() ? `?${sp.toString()}` : '';
     return apiFetch<Post[]>(`/api/core/users/me/likes${query}`);
+  },
+
+  async savePost(id: string): Promise<void> {
+    return apiFetch<void>(`/api/core/posts/${encodeURIComponent(id)}/save`, {
+      method: 'POST',
+    });
+  },
+
+  async unsavePost(id: string): Promise<void> {
+    return apiFetch<void>(`/api/core/posts/${encodeURIComponent(id)}/save`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getSavedPosts(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<Post[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<Post[]>(`/api/core/users/me/saved/posts${query}`);
+  },
+
+  async saveComment(id: string): Promise<void> {
+    return apiFetch<void>(`/api/core/comments/${encodeURIComponent(id)}/save`, {
+      method: 'POST',
+    });
+  },
+
+  async unsaveComment(id: string): Promise<void> {
+    return apiFetch<void>(`/api/core/comments/${encodeURIComponent(id)}/save`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getSavedComments(
+    params: { limit?: number; before?: string } = {}
+  ): Promise<Comment[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<Comment[]>(`/api/core/users/me/saved/comments${query}`);
+  },
+
+  async shareContent(
+    contentType: ShareContentType,
+    contentId: string
+  ): Promise<ShareContentResponse> {
+    return apiFetch<ShareContentResponse>('/api/core/share', {
+      method: 'POST',
+      body: JSON.stringify({ contentType, contentId }),
+    });
   },
 };
