@@ -47,6 +47,9 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
       setIsSubmitting(true);
       const memberIds = selectedMembers.map((m) => m.userId);
       const res = await chatApi.createGroup(groupName.trim(), memberIds);
+      if (!res.conversationId) {
+        throw new Error('Could not resolve group conversation ID');
+      }
 
       toast({
         title: 'Group created',

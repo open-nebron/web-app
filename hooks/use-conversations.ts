@@ -11,6 +11,7 @@ export function useConversations(params: ListConversationsParams = {}) {
   const queryClient = useQueryClient();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const currentUserId = useAuthStore((s) => s.user?.userId);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const queryKey = ['conversations', params.kind || 'all'];
 
@@ -19,7 +20,17 @@ export function useConversations(params: ListConversationsParams = {}) {
     queryFn: async () => {
       return chatApi.listConversations(params);
     },
+    enabled: Boolean(accessToken),
     staleTime: 30 * 1000,
+  });
+
+  useWsEvent('conversation.created', () => {
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+  });
+
+  useWsEvent('conversation.request_accepted', () => {
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    queryClient.invalidateQueries({ queryKey: ['conversation-requests'] });
   });
 
   // Handle incoming new messages to update conversation preview and order

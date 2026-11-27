@@ -12,7 +12,8 @@ import { useMessages } from '@/hooks/use-messages';
 import { useSendMessage } from '@/hooks/use-send-message';
 import { useAuthStore } from '@/lib/auth-store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { chatApi } from '@/lib/chat-api';
+import { chatApi, isValidConversationId } from '@/lib/chat-api';
+import { useWsClient } from '@/hooks/use-ws';
 import { useChatStore } from '@/lib/chat-store';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -27,7 +28,10 @@ export default function ConversationPage() {
   const searchParams = useSearchParams();
   const messageIdParam = searchParams?.get('messageId');
   const conversationId = params?.conversationId as string;
+  const isValidId = isValidConversationId(conversationId);
   const currentUserId = useAuthStore((s) => s.user?.userId || null);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const { subscribeChannel, status: wsStatus } = useWsClient();
   const { setActiveConversation } = useChatStore();
   const queryClient = useQueryClient();
   const [isAcceptedLocally, setIsAcceptedLocally] = React.useState(false);
@@ -37,6 +41,7 @@ export default function ConversationPage() {
   const { data: pendingRequests = [] } = useQuery({
     queryKey: ['conversation-requests'],
     queryFn: () => chatApi.listRequests(),
+    enabled: Boolean(accessToken),
     staleTime: 10 * 1000,
   });
 
@@ -58,13 +63,26 @@ export default function ConversationPage() {
 
   const { sendMessage } = useSendMessage(conversationId);
 
+  useEffect(() => {
+    if (conversationId && !isValidId) {
+      router.replace('/chat');
+    }
+  }, [conversationId, isValidId, router]);
+
   // Set active conversation in store
   useEffect(() => {
-    setActiveConversation(conversationId);
+    setActiveConversation(isValidId ? conversationId : null);
     return () => {
       setActiveConversation(null);
     };
-  }, [conversationId, setActiveConversation]);
+  }, [conversationId, isValidId, setActiveConversation]);
+
+  // Ensure WS socket subscribes to this conversation room immediately (e.g. newly created DM)
+  useEffect(() => {
+    if (isValidId && wsStatus === 'connected') {
+      subscribeChannel(conversationId);
+    }
+  }, [conversationId, isValidId, wsStatus, subscribeChannel]);
 
   // Find conversation object
   const conversation: Conversation | undefined = useMemo(() => {
@@ -116,7 +134,7 @@ export default function ConversationPage() {
   const { data: activeCallData } = useQuery({
     queryKey: ['active-group-call', conversationId],
     queryFn: () => voiceApi.getConversationCall(conversationId, 'active'),
-    enabled: Boolean(activeConversation.kind === 'group'),
+    enabled: isValidId && Boolean(accessToken) && activeConversation.kind === 'group',
     staleTime: 5000,
     refetchInterval: 10000,
   });
@@ -211,6 +229,9 @@ export default function ConversationPage() {
     try {
       setIsActingOnRequest(true);
       await chatApi.acceptRequest(conversationId);
+      if (isValidId && wsStatus === 'connected') {
+        subscribeChannel(conversationId);
+      }
       setIsAcceptedLocally(true);
       await queryClient.invalidateQueries({ queryKey: ['conversation-requests'] });
       await queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -278,6 +299,14 @@ export default function ConversationPage() {
       setIsActingOnRequest(false);
     }
   };
+
+  if (!isValidId) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">

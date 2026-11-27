@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { chatApi } from '@/lib/chat-api';
+import { chatApi, isValidConversationId } from '@/lib/chat-api';
 import type { ChatMessage, Conversation, WSMessageNewPayload, WSMessageReadPayload } from '@/lib/chat-types';
 import { useWsEvent, useWsClient } from '@/hooks/use-ws';
 import { useAuthStore } from '@/lib/auth-store';
@@ -10,7 +10,9 @@ import { useAuthStore } from '@/lib/auth-store';
 export function useMessages(conversationId: string) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.userId);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const { sendRead, status } = useWsClient();
+  const isValidId = isValidConversationId(conversationId);
 
   const queryKey = useMemo(() => ['messages', conversationId], [conversationId]);
 
@@ -29,7 +31,7 @@ export function useMessages(conversationId: string) {
       }
       return lastPage.data[lastPage.data.length - 1].id;
     },
-    enabled: Boolean(conversationId),
+    enabled: isValidId && Boolean(accessToken),
     staleTime: 10 * 1000,
   });
 

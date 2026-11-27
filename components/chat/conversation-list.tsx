@@ -19,6 +19,7 @@ import {
 import { useConversations } from '@/hooks/use-conversations';
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '@/lib/chat-api';
+import { useAuthStore } from '@/lib/auth-store';
 import type { PublicUser } from '@/lib/chat-types';
 import { MessageSquarePlus, UserPlus, Users, Search, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
@@ -30,6 +31,7 @@ interface ConversationListProps {
 
 export function ConversationList({ activeId, onSelect }: ConversationListProps) {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [filter, setFilter] = useState<'all' | 'direct' | 'group'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -46,6 +48,7 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
   const { data: pendingRequests = [] } = useQuery({
     queryKey: ['conversation-requests'],
     queryFn: () => chatApi.listRequests(),
+    enabled: Boolean(accessToken),
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,
   });
@@ -77,6 +80,9 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
     try {
       setIsStartingDirect(true);
       const res = await chatApi.createDirect(targetUser.userId);
+      if (!res.conversationId) {
+        throw new Error('Could not resolve conversation ID');
+      }
       setStartDirectOpen(false);
       setSelectedUserForDirect([]);
       if (res.requestState === 'pending' || res.request_state === 'pending') {

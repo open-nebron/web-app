@@ -48,6 +48,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
     clearTyping,
     pruneExpiredTyping,
     setPresence,
+    batchSetPresence,
     starMessageId,
     unstarMessageId,
     setStarredMessageIds,
@@ -85,6 +86,25 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
         status: isOnline ? 'online' : 'offline',
         lastSeenAt: payload.lastSeenAt,
       });
+    });
+
+    const unsubPresenceSnapshot = client.on('presence.snapshot', (data: unknown) => {
+      const raw = data as {
+        payload?: { users?: Array<{ userId: string; online: boolean; lastSeenAt?: string }> };
+        users?: Array<{ userId: string; online: boolean; lastSeenAt?: string }>;
+      };
+      const users = raw?.payload?.users ?? raw?.users;
+      if (!Array.isArray(users) || users.length === 0) return;
+      const entries: Record<string, { status: 'online' | 'offline'; lastSeenAt?: string }> = {};
+      for (const u of users) {
+        if (u?.userId) {
+          entries[u.userId] = {
+            status: u.online ? 'online' : 'offline',
+            ...(u.lastSeenAt ? { lastSeenAt: u.lastSeenAt } : {}),
+          };
+        }
+      }
+      batchSetPresence(entries);
     });
 
     const unsubStarred = client.on('message.starred', (data: unknown) => {
@@ -330,6 +350,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubStatus();
       unsubTyping();
       unsubPresence();
+      unsubPresenceSnapshot();
       unsubStarred();
       unsubUnstarred();
       unsubReactionAdded();
@@ -350,7 +371,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubStoryCreated();
       unsubStoryDeleted();
     };
-  }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, starMessageId, unstarMessageId]);
+  }, [client, queryClient, setWsStatus, addTyping, clearTyping, setPresence, batchSetPresence, starMessageId, unstarMessageId]);
 
   // Connect / disconnect on accessToken changes
   useEffect(() => {

@@ -21,6 +21,19 @@ export interface ListMessagesParams {
   limit?: number;
 }
 
+const VALID_CONVERSATION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^[0-9a-f]{24}$/i;
+
+export function isValidConversationId(id?: string | null): id is string {
+  return Boolean(id && VALID_CONVERSATION_ID_RE.test(id));
+}
+
+function unwrapResponseData<T>(res: T | { data: T }): T {
+  return res && typeof res === 'object' && 'data' in res
+    ? (res as { data: T }).data
+    : (res as T);
+}
+
 export const chatApi = {
   async listConversations(params: ListConversationsParams = {}): Promise<Conversation[]> {
     const query = new URLSearchParams();
@@ -52,14 +65,32 @@ export const chatApi = {
     requestState?: 'active' | 'pending' | 'rejected' | null;
     request_state?: 'active' | 'pending' | 'rejected' | null;
   }> {
-    return apiFetch<{
-      conversationId: string;
-      requestState?: 'active' | 'pending' | 'rejected' | null;
-      request_state?: 'active' | 'pending' | 'rejected' | null;
-    }>('/api/chat/conversations', {
+    const raw = await apiFetch<
+      | {
+          conversationId?: string;
+          id?: string;
+          requestState?: 'active' | 'pending' | 'rejected' | null;
+          request_state?: 'active' | 'pending' | 'rejected' | null;
+        }
+      | {
+          data: {
+            id?: string;
+            conversationId?: string;
+            requestState?: 'active' | 'pending' | 'rejected' | null;
+            request_state?: 'active' | 'pending' | 'rejected' | null;
+          };
+        }
+    >('/api/chat/conversations', {
       method: 'POST',
       body: JSON.stringify({ peerUserId }),
     });
+    const payload = unwrapResponseData(raw);
+    const requestState = payload.requestState ?? payload.request_state ?? null;
+    return {
+      conversationId: payload.conversationId ?? payload.id ?? '',
+      requestState,
+      request_state: payload.request_state ?? requestState,
+    };
   },
 
   async listRequests(): Promise<Conversation[]> {
@@ -80,10 +111,17 @@ export const chatApi = {
   },
 
   async createGroup(name: string, memberIds: string[]): Promise<{ conversationId: string }> {
-    return apiFetch<{ conversationId: string }>('/api/chat/conversations/group', {
+    const raw = await apiFetch<
+      | { conversationId?: string; id?: string }
+      | { data: { id?: string; conversationId?: string } }
+    >('/api/chat/conversations/group', {
       method: 'POST',
       body: JSON.stringify({ name, memberIds }),
     });
+    const payload = unwrapResponseData(raw);
+    return {
+      conversationId: payload.conversationId ?? payload.id ?? '',
+    };
   },
 
   async addMembers(conversationId: string, userIds: string[]): Promise<void> {
@@ -174,13 +212,22 @@ export const chatApi = {
     replyToId?: string,
     forwardOf?: { messageId: string; conversationId: string; senderId?: string }
   ): Promise<{ message: ChatMessage }> {
-    return apiFetch<{ message: ChatMessage }>(
+    const raw = await apiFetch<{ message?: ChatMessage } | { data?: ChatMessage } | ChatMessage>(
       `/api/chat/conversations/${conversationId}/messages`,
       {
         method: 'POST',
         body: JSON.stringify({ body, clientId, replyToId, forwardOf }),
       }
     );
+    if (raw && typeof raw === 'object') {
+      if ('message' in raw && raw.message) {
+        return { message: raw.message };
+      }
+      if ('data' in raw && raw.data) {
+        return { message: raw.data };
+      }
+    }
+    return { message: raw as ChatMessage };
   },
 
   async getMessage(

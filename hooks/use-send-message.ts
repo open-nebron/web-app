@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWsClient } from '@/hooks/use-ws';
-import { chatApi } from '@/lib/chat-api';
+import { chatApi, isValidConversationId } from '@/lib/chat-api';
 import { useAuthStore } from '@/lib/auth-store';
 import type { ChatMessage, Conversation } from '@/lib/chat-types';
 
@@ -18,7 +18,7 @@ export function useSendMessage(conversationId: string) {
       replyToId?: string,
       forwardOf?: { messageId: string; conversationId: string; senderId?: string }
     ) => {
-      if (!conversationId || (!body.trim() && !forwardOf) || !user) return;
+      if (!isValidConversationId(conversationId) || (!body.trim() && !forwardOf) || !user) return;
 
       const trimmedBody = body.trim();
       const clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);

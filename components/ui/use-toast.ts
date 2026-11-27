@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 const TOAST_LIMIT = 3;
-const TOAST_REMOVE_DELAY = 4000;
+const TOAST_REMOVE_DELAY = 1000;
 
 type ToastActionElement = React.ReactElement;
 
@@ -12,6 +12,8 @@ export interface ToastItem {
   action?: ToastActionElement;
   variant?: 'default' | 'destructive';
   open?: boolean;
+  duration?: number;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const actionTypes = {
@@ -103,9 +105,24 @@ function dispatch(action: Action) {
 
 export function toast(props: Omit<ToastItem, 'id'>) {
   const id = genId();
+  const duration = props.duration ?? 3500;
+  let autoDismissTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearAutoDismiss = () => {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = undefined;
+    }
+  };
   const update = (newProps: Partial<ToastItem>) =>
     dispatch({ type: 'UPDATE_TOAST', toast: { ...newProps, id } });
-  const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
+  const dismiss = () => {
+    clearAutoDismiss();
+    dispatch({ type: 'DISMISS_TOAST', toastId: id });
+  };
+
+  autoDismissTimer = setTimeout(() => {
+    dismiss();
+  }, duration);
 
   dispatch({
     type: 'ADD_TOAST',
@@ -113,6 +130,12 @@ export function toast(props: Omit<ToastItem, 'id'>) {
       ...props,
       id,
       open: true,
+      onOpenChange: (open: boolean) => {
+        props.onOpenChange?.(open);
+        if (!open) {
+          dismiss();
+        }
+      },
     },
   });
 

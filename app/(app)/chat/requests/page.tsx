@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { chatApi } from '@/lib/chat-api';
+import { useAuthStore } from '@/lib/auth-store';
 import { useUser } from '@/hooks/use-user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -76,10 +77,12 @@ function MessageRequestRow({
 
 export default function MessageRequestsPage() {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['conversation-requests'],
     queryFn: () => chatApi.listRequests(),
+    enabled: Boolean(accessToken),
     staleTime: 10 * 1000,
   });
 

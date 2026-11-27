@@ -149,6 +149,9 @@ export default function PublicProfilePage() {
     try {
       setIsStartingChat(true);
       const res = await chatApi.createDirect(profile.userId);
+      if (!res.conversationId) {
+        throw new Error('Could not resolve conversation ID');
+      }
       router.push(`/chat/${res.conversationId}`);
     } catch (err: any) {
       toast({

@@ -36,6 +36,9 @@ export function UserPopover({ userId, children }: UserPopoverProps) {
     try {
       setIsStartingChat(true);
       const res = await chatApi.createDirect(userId);
+      if (!res.conversationId) {
+        throw new Error('Could not resolve conversation ID');
+      }
       setOpen(false);
       router.push(`/chat/${res.conversationId}`);
     } catch (err: any) {
