@@ -53,6 +53,50 @@ class ClientRateLimiter {
   }
 }
 
+function isLoopbackUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1' || parsed.hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
+export interface BrowserLocationLike {
+  protocol: string;
+  hostname: string;
+  host: string;
+}
+
+/**
+ * Resolves the Chat WebSocket base URL for both local development and HTTPS
+ * reverse-proxied / tunneled origins (e.g., Cloudflare tunnels) so browsers on
+ * HTTPS origins do not attempt blocked ws://localhost:4003 connections.
+ */
+export function resolveChatWsUrl(envUrl?: string, location?: BrowserLocationLike): string {
+  if (location) {
+    const isRemoteHost =
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1' &&
+      location.hostname !== '::1';
+
+    if (envUrl && (!isLoopbackUrl(envUrl) || !isRemoteHost)) {
+      if (!(location.protocol === 'https:' && envUrl.startsWith('ws://') && isRemoteHost)) {
+        return envUrl;
+      }
+    }
+
+    if (location.protocol === 'https:') {
+      return `wss://${location.host}`;
+    }
+
+    const protocol = 'ws:';
+    return `${protocol}//${location.hostname}:4003`;
+  }
+
+  return envUrl || 'ws://localhost:4003';
+}
+
 export class WsClient {
   private socket: WebSocket | null = null;
   private token: string | null = null;
@@ -68,6 +112,8 @@ export class WsClient {
   private rateLimiter = new ClientRateLimiter();
   private isExplicitlyClosed = false;
   private hasTriedTokenRefreshOn4401 = false;
+  private isRefreshingOn4401 = false;
+  private lastRefreshedToken: string | null = null;
 
   private readonly PING_INTERVAL_MS = 25000;
   private readonly PONG_TIMEOUT_MS = 10000;
@@ -105,6 +151,17 @@ export class WsClient {
   }
 
   public connect(token: string): void {
+    // Ignore store echoes during or right after 4401 recovery;
+    // handleSocketClose initiates connection with the refreshed token.
+    if (this.isRefreshingOn4401) {
+      this.token = token;
+      return;
+    }
+
+    if (this.lastRefreshedToken === token) {
+      return;
+    }
+
     if (
       this.socket &&
       (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) &&
@@ -112,21 +169,21 @@ export class WsClient {
     ) {
       return;
     }
+
+    this.hasTriedTokenRefreshOn4401 = false;
+    this.lastRefreshedToken = null;
+
     this.token = token;
     this.isExplicitlyClosed = false;
-    this.hasTriedTokenRefreshOn4401 = false;
     this.initiateConnection();
   }
 
   private getWsUrl(): string {
     if (this.urlProvider) return this.urlProvider();
-    const envUrl = process.env.NEXT_PUBLIC_CHAT_WS;
-    if (envUrl) return envUrl;
-    if (typeof window !== 'undefined') {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${window.location.hostname}:4003`;
-    }
-    return 'ws://localhost:4003';
+    return resolveChatWsUrl(
+      process.env.NEXT_PUBLIC_CHAT_WS,
+      typeof window !== 'undefined' ? window.location : undefined
+    );
   }
 
   private initiateConnection(): void {
@@ -222,19 +279,26 @@ export class WsClient {
       return;
     }
 
-    // 4401: Invalid token -> attempt silent refresh once
+    // 4401: Invalid token -> attempt silent refresh at most once per connection cycle
     if (code === 4401) {
-      if (!this.hasTriedTokenRefreshOn4401) {
+      if (!this.hasTriedTokenRefreshOn4401 && !this.isRefreshingOn4401) {
         this.hasTriedTokenRefreshOn4401 = true;
+        this.isRefreshingOn4401 = true;
         try {
           const fresh = await authApi.refresh();
+          if (this.isExplicitlyClosed) {
+            return;
+          }
           if (fresh?.accessToken) {
+            this.lastRefreshedToken = fresh.accessToken;
             this.token = fresh.accessToken;
             this.initiateConnection();
             return;
           }
         } catch {
           // Token refresh failed
+        } finally {
+          this.isRefreshingOn4401 = false;
         }
       }
       this.setStatus('auth-failed');
@@ -366,6 +430,10 @@ export class WsClient {
 
   public disconnect(): void {
     this.isExplicitlyClosed = true;
+    this.hasTriedTokenRefreshOn4401 = false;
+    this.isRefreshingOn4401 = false;
+    this.lastRefreshedToken = null;
+    this.token = null;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

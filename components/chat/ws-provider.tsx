@@ -39,6 +39,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((s) => s.accessToken);
   const authStatus = useAuthStore((s) => s.status);
+  const userId = useAuthStore((s) => s.user?.userId ?? null);
   const clientRef = useRef<WsClient | null>(null);
 
   const {
@@ -377,20 +378,24 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authStatus === 'authenticated' && accessToken) {
       client.connect(accessToken);
-      // Fetch initial starred messages to populate starred cache
-      import('@/lib/chat-api').then(({ chatApi }) => {
-        chatApi.listStarred({ limit: 100 })
-          .then((res) => {
-            if (res?.data) {
-              setStarredMessageIds(res.data.map((item) => item.messageId));
-            }
-          })
-          .catch(() => {});
-      });
     } else if (authStatus === 'unauthenticated') {
       client.disconnect();
     }
-  }, [client, accessToken, authStatus, setStarredMessageIds]);
+  }, [client, accessToken, authStatus]);
+
+  // Populate starred messages cache once per authenticated session rather than on every token rotation
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !userId) return;
+    import('@/lib/chat-api').then(({ chatApi }) => {
+      chatApi.listStarred({ limit: 100 })
+        .then((res) => {
+          if (res?.data) {
+            setStarredMessageIds(res.data.map((item) => item.messageId));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [authStatus, userId, setStarredMessageIds]);
 
   // Prune expired typing users every second
   useEffect(() => {

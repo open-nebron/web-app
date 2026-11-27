@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { WsClient } from './ws-client';
+import { WsClient, resolveChatWsUrl } from './ws-client';
+import { authApi } from '@/lib/api';
 
 class MockWebSocket {
   public static instances: MockWebSocket[] = [];
@@ -145,5 +146,62 @@ describe('WsClient', () => {
     expect(MockWebSocket.instances.length).toBe(2);
 
     client.disconnect();
+  });
+
+  it('4. Does not loop refresh/reconnect when 4401 occurs repeatedly', async () => {
+    const client = new WsClient(() => 'ws://localhost:4003');
+    const refreshSpy = vi.spyOn(authApi, 'refresh').mockImplementation(async () => {
+      // Simulate WsProvider's useEffect immediately calling client.connect(freshToken)
+      client.connect('refreshed-token-2');
+      return { accessToken: 'refreshed-token-2', expiresIn: 900 };
+    });
+
+    client.connect('initial-token-1');
+    expect(MockWebSocket.instances.length).toBe(1);
+
+    // First 4401 on handshake triggers exactly one refresh + reconnect
+    MockWebSocket.instances[0].close(4401, 'invalid_token');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances.length).toBe(2);
+    expect(MockWebSocket.instances[1].url).toContain('refreshed-token-2');
+
+    // Second 4401 on refreshed token sets auth-failed without another refresh or socket
+    MockWebSocket.instances[1].close(4401, 'invalid_token');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(client.getStatus()).toBe('auth-failed');
+    expect(MockWebSocket.instances.length).toBe(2);
+
+    refreshSpy.mockRestore();
+    client.disconnect();
+  });
+
+  it('5. resolveChatWsUrl uses wss://<host> on HTTPS tunnels when env points to localhost', () => {
+    expect(
+      resolveChatWsUrl('ws://localhost:4003', {
+        protocol: 'https:',
+        hostname: 'demo.example.com',
+        host: 'demo.example.com',
+      })
+    ).toBe('wss://demo.example.com');
+
+    expect(
+      resolveChatWsUrl('ws://localhost:4003', {
+        protocol: 'http:',
+        hostname: 'localhost',
+        host: 'localhost:3000',
+      })
+    ).toBe('ws://localhost:4003');
+
+    expect(
+      resolveChatWsUrl('wss://chat.example.com', {
+        protocol: 'https:',
+        hostname: 'app.example.com',
+        host: 'app.example.com',
+      })
+    ).toBe('wss://chat.example.com');
   });
 });

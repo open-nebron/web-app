@@ -68,7 +68,12 @@ export async function apiFetch<T = unknown>(
         ...options,
         _retry: true,
       });
-    } catch {
+    } catch (refreshErr) {
+      const errStatus = (refreshErr as { status?: number })?.status;
+      if (errStatus === 0 || errStatus === 429 || (typeof errStatus === 'number' && errStatus >= 500)) {
+        throw refreshErr;
+      }
+
       useAuthStore.getState().clear();
       if (
         typeof window !== 'undefined' &&
