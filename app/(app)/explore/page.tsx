@@ -45,10 +45,13 @@ export default function ExplorePage() {
     let active = true;
     setIsSearching(true);
 
-    apiFetch<UserFollowItem[]>(`/api/core/users/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`)
+    apiFetch<{ users?: UserFollowItem[] } | UserFollowItem[]>(
+      `/api/core/users/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`
+    )
       .then((res) => {
         if (active) {
-          setSearchResults(res || []);
+          const list = Array.isArray(res) ? res : res?.users || [];
+          setSearchResults(list);
         }
       })
       .catch(() => {
@@ -139,7 +142,8 @@ export default function ExplorePage() {
 
                       <FollowButton
                         userId={user.userId}
-                        initialIsFollowing={user.isFollowingViewer}
+                        initialIsFollowing={Boolean(user.isFollowedByViewer)}
+                        initialFollowerCount={user.followerCount ?? 0}
                       />
                     </div>
                   );

@@ -56,13 +56,17 @@ export default function PublicProfilePage() {
     fetchNextPage,
   } = useUserPosts(profile?.userId);
 
+  const isSelf = Boolean(
+    currentUser?.userId && profile?.userId && currentUser.userId === profile.userId
+  );
+
   const {
     posts: likedPosts,
     isLoading: isLikedPostsLoading,
     hasNextPage: hasNextLikedPage,
     isFetchingNextPage: isFetchingNextLikedPage,
     fetchNextPage: fetchNextLikedPage,
-  } = useMyLikedPosts();
+  } = useMyLikedPosts(isSelf);
 
   const [isStartingChat, setIsStartingChat] = React.useState(false);
   const [showBlockDialog, setShowBlockDialog] = React.useState(false);
@@ -210,14 +214,12 @@ export default function PublicProfilePage() {
     );
   }
 
-  const isSelf = currentUser?.userId === profile.userId;
-
   return (
     <div>
       <AppHeader title={`@${profile.username}`} />
       <ProfileHeader profile={profile} isOwnProfile={false} />
 
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+      <div id="profile-posts" className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {/* Actions bar for other users */}
         {!isSelf && (
           <div className="flex flex-wrap items-center gap-2.5">

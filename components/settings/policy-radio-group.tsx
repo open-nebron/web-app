@@ -26,7 +26,6 @@ const POLICIES: PolicyOption[] = [
     value: 'known',
     title: 'Known users (Recommended)',
     description: 'Messages from users you do not follow or have not chatted with will go to message requests.',
-    comingSoon: true,
   },
   {
     value: 'nobody',
@@ -39,7 +38,7 @@ export function PolicyRadioGroup() {
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
 
-  const currentPolicy: MessageRequestPolicy = profile?.messageRequestPolicy || 'everyone';
+  const currentPolicy: MessageRequestPolicy = profile?.messageRequestPolicy || 'known';
   const [selectedPolicy, setSelectedPolicy] = React.useState<MessageRequestPolicy>(currentPolicy);
 
   React.useEffect(() => {

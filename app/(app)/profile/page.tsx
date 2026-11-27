@@ -66,7 +66,7 @@ export default function ProfilePage() {
 
       <ProfileHeader profile={profile} isOwnProfile={true} />
 
-      <div className="max-w-4xl mx-auto px-6 py-6">
+      <div id="profile-posts" className="max-w-4xl mx-auto px-6 py-6">
         <Tabs defaultValue="posts" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-4 mb-6">
             <TabsTrigger value="posts">Posts</TabsTrigger>

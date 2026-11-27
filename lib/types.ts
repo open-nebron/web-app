@@ -109,7 +109,9 @@ export interface UserFollowItem {
   username: string;
   name: string | null;
   avatarUrl: string | null;
+  followerCount?: number;
   isFollowingViewer: boolean;
+  isFollowedByViewer?: boolean;
 }
 
 export interface UserSuggestionItem {

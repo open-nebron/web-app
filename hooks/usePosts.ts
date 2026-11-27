@@ -46,6 +46,8 @@ export function useCreatePost() {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['user-by-username'] });
       toast({
         title: 'Post created',
         description: 'Your post is now live.',
@@ -70,6 +72,8 @@ export function useDeletePost() {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['user-by-username'] });
       toast({
         title: 'Post deleted',
         description: 'Your post has been removed.',
@@ -120,7 +124,7 @@ export function usePopularPosts(limit: number = 20) {
   });
 }
 
-export function useMyLikedPosts() {
+export function useMyLikedPosts(enabled: boolean = true) {
   const query = useInfiniteQuery<Post[]>({
     queryKey: ['my-likes'],
     queryFn: async ({ pageParam }) => {
@@ -134,6 +138,7 @@ export function useMyLikedPosts() {
       if (!lastPage || lastPage.length < 20) return undefined;
       return lastPage[lastPage.length - 1].createdAt;
     },
+    enabled,
     staleTime: 30 * 1000,
   });
 

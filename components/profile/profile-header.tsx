@@ -3,15 +3,23 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
-import { Calendar, Globe, Pencil, Sparkles, Flag, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Calendar, Globe, Loader2, Pencil, Sparkles, Flag, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FollowButton } from '@/components/social/FollowButton';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { StoryComposer } from '@/components/stories/story-composer';
 import { StoryViewer } from '@/components/stories/story-viewer';
 import { useUserStories } from '@/hooks/useStories';
-import type { UserProfile } from '@/lib/types';
+import { socialApi } from '@/lib/social-api';
+import type { UserFollowItem, UserProfile } from '@/lib/types';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 
 interface ProfileHeaderProps {
@@ -23,6 +31,27 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
   const [reportOpen, setReportOpen] = React.useState(false);
   const [storyComposerOpen, setStoryComposerOpen] = React.useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = React.useState(false);
+  const [followListKind, setFollowListKind] = React.useState<'followers' | 'following' | null>(null);
+  const [displayFollowerCount, setDisplayFollowerCount] = React.useState(profile.followerCount ?? 0);
+
+  React.useEffect(() => {
+    setDisplayFollowerCount(profile.followerCount ?? 0);
+  }, [profile.followerCount]);
+
+  const handleFollowChange = React.useCallback((_isFollowing: boolean, newCount: number) => {
+    setDisplayFollowerCount(newCount);
+  }, []);
+
+  const { data: followListUsers = [], isLoading: isLoadingFollowList } = useQuery<UserFollowItem[]>({
+    queryKey: [followListKind || 'followers', profile.userId],
+    queryFn: () =>
+      followListKind === 'followers'
+        ? socialApi.getFollowers(profile.userId, { limit: 50 })
+        : socialApi.getFollowing(profile.userId, { limit: 50 }),
+    enabled: Boolean(followListKind && profile.userId),
+    staleTime: 15 * 1000,
+  });
+
   const { data: userStoryGroup } = useUserStories(profile.userId);
   const hasActiveStories = Boolean(userStoryGroup && userStoryGroup.stories.length > 0);
   const userInitial = profile.name
@@ -142,6 +171,7 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
                 userId={profile.userId}
                 initialIsFollowing={profile.isFollowedByViewer}
                 initialFollowerCount={profile.followerCount}
+                onFollowChange={handleFollowChange}
               />
               <Button
                 variant="outline"
@@ -171,18 +201,32 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
 
         {/* Stats: Posts, Followers, Following */}
         <div className="flex items-center gap-6 mt-3 text-sm">
-          <div>
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('profile-posts')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="hover:underline focus:outline-none text-left"
+          >
             <span className="font-semibold text-foreground">{profile.postCount ?? 0}</span>{' '}
             <span className="text-muted-foreground">Posts</span>
-          </div>
-          <div>
-            <span className="font-semibold text-foreground">{profile.followerCount ?? 0}</span>{' '}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFollowListKind('followers')}
+            className="hover:underline focus:outline-none text-left"
+          >
+            <span className="font-semibold text-foreground">{displayFollowerCount}</span>{' '}
             <span className="text-muted-foreground">Followers</span>
-          </div>
-          <div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFollowListKind('following')}
+            className="hover:underline focus:outline-none text-left"
+          >
             <span className="font-semibold text-foreground">{profile.followingCount ?? 0}</span>{' '}
             <span className="text-muted-foreground">Following</span>
-          </div>
+          </button>
         </div>
 
         {/* Bio */}
@@ -234,6 +278,67 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           onClose={() => setStoryViewerOpen(false)}
         />
       )}
+
+      <Dialog
+        open={Boolean(followListKind)}
+        onOpenChange={(open) => {
+          if (!open) setFollowListKind(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="capitalize">
+              {followListKind === 'followers' ? 'Followers' : 'Following'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto divide-y divide-border/50">
+            {isLoadingFollowList ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+            ) : followListUsers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                {followListKind === 'followers'
+                  ? 'No followers yet.'
+                  : 'Not following anyone yet.'}
+              </p>
+            ) : (
+              followListUsers.map((u) => {
+                const name = u.name || u.username;
+                const initials = (name[0] || 'U').toUpperCase();
+                return (
+                  <div key={u.userId} className="flex items-center justify-between py-2.5 gap-3">
+                    <Link
+                      href={`/${u.username}`}
+                      onClick={() => setFollowListKind(null)}
+                      className="flex items-center gap-3 min-w-0 group"
+                    >
+                      <Avatar className="w-9 h-9 border border-border/50 shrink-0">
+                        <AvatarImage
+                          src={u.avatarUrl ? normalizeStorageUrl(u.avatarUrl) : undefined}
+                          alt={name}
+                        />
+                        <AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground group-hover:underline truncate">
+                          {name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
+                      </div>
+                    </Link>
+                    <FollowButton
+                      userId={u.userId}
+                      initialIsFollowing={u.isFollowedByViewer ?? false}
+                      size="sm"
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
