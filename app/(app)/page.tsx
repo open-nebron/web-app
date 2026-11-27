@@ -67,6 +67,7 @@ export default function HomePage() {
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             fetchNextPage={fetchNextPage}
+            impressionSource="feed"
           />
         ) : isFollowingZero ? (
           /* Empty state when user follows nobody: suggestions */
@@ -136,6 +137,7 @@ export default function HomePage() {
                           userId={user.userId}
                           initialIsFollowing={false}
                           initialFollowerCount={user.followerCount}
+                          followSource="suggestion"
                           size="sm"
                         />
                       </div>

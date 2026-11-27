@@ -145,6 +145,7 @@ export default function ExplorePage() {
                         userId={user.userId}
                         initialIsFollowing={Boolean(user.isFollowedByViewer)}
                         initialFollowerCount={user.followerCount ?? 0}
+                        followSource="search"
                       />
                     </div>
                   );
@@ -217,6 +218,7 @@ export default function ExplorePage() {
                             userId={user.userId}
                             initialIsFollowing={false}
                             initialFollowerCount={user.followerCount}
+                            followSource="suggestion"
                             className="w-full justify-center"
                           />
                         </div>
@@ -274,7 +276,7 @@ export default function ExplorePage() {
               ) : popularPosts && popularPosts.length > 0 ? (
                 <div className="space-y-4">
                   {popularPosts.map((post) => (
-                    <PostCard key={post.id} post={post} />
+                    <PostCard key={post.id} post={post} impressionSource="explore" />
                   ))}
                 </div>
               ) : (

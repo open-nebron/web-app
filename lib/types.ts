@@ -357,3 +357,167 @@ export interface ReelLikerItem {
   avatarUrl: string | null;
 }
 
+export type AnalyticsPeriod = '7d' | '30d' | '90d';
+export type AnalyticsContentType = 'post' | 'reel' | 'story';
+export type AnalyticsSource = 'feed' | 'profile' | 'explore' | 'shared' | 'hashtag';
+export type FollowSourceType = 'profile' | 'feed' | 'reel' | 'search' | 'suggestion' | 'other';
+
+export interface OverviewTopContentItem {
+  contentType: AnalyticsContentType;
+  contentId: string;
+  preview: string;
+  thumbnailUrl?: string | null;
+  metrics: {
+    impressions: number;
+    reach: number;
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    engagementScore: number;
+  };
+}
+
+export interface OverviewDailyActivityPoint {
+  date: string;
+  followersGained: number;
+  impressions: number;
+  reach: number;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  engagement: number;
+}
+
+export interface AnalyticsOverviewResponse {
+  period: AnalyticsPeriod;
+  followers: { total: number; gained: number };
+  profileVisits: number;
+  content: { posts: number; reels: number; stories: number };
+  engagement: {
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    views: number;
+    impressions: number;
+    reach: number;
+  };
+  topContent: OverviewTopContentItem[];
+  topByType: {
+    post: OverviewTopContentItem | null;
+    reel: OverviewTopContentItem | null;
+    story: OverviewTopContentItem | null;
+  };
+  dailyActivity: OverviewDailyActivityPoint[];
+  activityHeatmap: number[][];
+  bestPerformingDay: string | null;
+  bestTimeToPost: number[];
+}
+
+export interface PostAnalyticsRow {
+  postId: string;
+  preview: string;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  impressions: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  profileVisits: number;
+  newFollowers: number;
+  engagementRate: number;
+}
+
+export interface ReelAnalyticsRow {
+  reelId: string;
+  preview: string;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  views: number;
+  uniqueViews: number;
+  watchSeconds: number;
+  avgWatchSeconds: number;
+  completionRate: number;
+  replays: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  newFollowers: number;
+}
+
+export interface StoryAnalyticsRow {
+  storyId: string;
+  preview: string;
+  thumbnailUrl: string | null;
+  mediaType: 'image' | 'video' | null;
+  createdAt: string;
+  uniqueViewers: number;
+  totalViews: number;
+  completionRate: number;
+  tapsForward: number;
+  tapsBack: number;
+  exits: number;
+  replies: number;
+}
+
+export interface AnalyticsTimeSeriesBucket {
+  date: string;
+  impressions: number;
+  reach: number;
+  views: number;
+  uniqueViews: number;
+  watchSeconds: number;
+  completions: number;
+  tapsForward: number;
+  tapsBack: number;
+  exits: number;
+  replays: number;
+  likes: number;
+  comments: number;
+  replies: number;
+  shares: number;
+  saves: number;
+}
+
+export interface ContentAnalyticsDeepDiveResponse {
+  contentType: AnalyticsContentType;
+  contentId: string;
+  preview: string;
+  thumbnailUrl: string | null;
+  mediaType?: 'image' | 'video' | null;
+  createdAt: string;
+  period: AnalyticsPeriod;
+  profileVisits: number;
+  newFollowers: number;
+  totals: Omit<AnalyticsTimeSeriesBucket, 'date'>;
+  series: AnalyticsTimeSeriesBucket[];
+  trafficSources: Array<{ source: string; count: number }>;
+  watchThroughBuckets?: Array<{
+    bucket: string;
+    minPct: number;
+    count: number;
+    percentage: number;
+  }>;
+  funnel?: {
+    impressions: number;
+    views: number;
+    completed: number;
+    replied: number;
+  };
+  hourlyViews?: Array<{ hourOffset: number; label: string; views: number }>;
+}
+
+export interface AudienceAnalyticsResponse {
+  followerGrowth: Array<{ date: string; count: number }>;
+  activeHours: Array<{ hour: number; followers: number }>;
+  followSources: Array<{ source: string; count: number }>;
+  activityHeatmap: number[][];
+}
+

@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/dialog';
 import { StoryViewersSheet } from './story-viewers-sheet';
 import { useStories, useDeleteStory } from '@/hooks/useStories';
+import { analyticsApi } from '@/lib/analytics-api';
+import { shouldSendImpression, useViewTracking } from '@/lib/beacons';
 import type { StoryGroup } from '@/lib/types';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 
@@ -100,28 +102,53 @@ export function StoryViewer({
   const activeGroup = groups[groupIndex];
   const activeStory = activeGroup?.stories[storyIndex];
 
+  const viewTracking = useViewTracking('story', activeStory?.id, {
+    active: open && Boolean(activeStory),
+    source: 'feed',
+    totalSeconds: activeStory?.duration || 5,
+  });
+
+  const handleExplicitClose = React.useCallback(() => {
+    viewTracking.markExited();
+    onClose();
+  }, [viewTracking, onClose]);
+
+  const advanceStory = React.useCallback(
+    (reason: 'auto' | 'tap') => {
+      if (reason === 'auto') {
+        viewTracking.markCompleted();
+      } else {
+        viewTracking.reportTapForward();
+      }
+
+      if (!activeGroup) {
+        onClose();
+        return;
+      }
+      if (storyIndex + 1 < activeGroup.stories.length) {
+        setStoryIndex((i) => i + 1);
+        setProgress(0);
+      } else if (groupIndex + 1 < groups.length) {
+        const nextGroupIdx = groupIndex + 1;
+        setGroupIndex(nextGroupIdx);
+        const nextGroup = groups[nextGroupIdx];
+        const firstUnviewed = nextGroup?.stories.findIndex((s) => !s.viewedByMe) ?? 0;
+        setStoryIndex(firstUnviewed >= 0 ? firstUnviewed : 0);
+        setProgress(0);
+      } else {
+        onClose();
+      }
+    },
+    [activeGroup, storyIndex, groupIndex, groups, onClose, viewTracking]
+  );
+
   const handleNext = React.useCallback(() => {
-    if (!activeGroup) {
-      onClose();
-      return;
-    }
-    if (storyIndex + 1 < activeGroup.stories.length) {
-      setStoryIndex((i) => i + 1);
-      setProgress(0);
-    } else if (groupIndex + 1 < groups.length) {
-      const nextGroupIdx = groupIndex + 1;
-      setGroupIndex(nextGroupIdx);
-      const nextGroup = groups[nextGroupIdx];
-      const firstUnviewed = nextGroup?.stories.findIndex((s) => !s.viewedByMe) ?? 0;
-      setStoryIndex(firstUnviewed >= 0 ? firstUnviewed : 0);
-      setProgress(0);
-    } else {
-      onClose();
-    }
-  }, [activeGroup, storyIndex, groupIndex, groups, onClose]);
+    advanceStory('tap');
+  }, [advanceStory]);
 
   const handlePrev = React.useCallback(() => {
     if (!activeGroup) return;
+    viewTracking.reportTapBack();
     if (storyIndex > 0) {
       setStoryIndex((i) => i - 1);
       setProgress(0);
@@ -134,11 +161,16 @@ export function StoryViewer({
     } else {
       setProgress(0);
     }
-  }, [activeGroup, storyIndex, groupIndex, groups]);
+  }, [activeGroup, storyIndex, groupIndex, groups, viewTracking]);
 
   // Track view idempotently whenever activeStory changes
   React.useEffect(() => {
     if (!open || !activeStory || !activeGroup) return;
+    if (shouldSendImpression('story', activeStory.id)) {
+      analyticsApi
+        .recordImpression({ contentType: 'story', contentId: activeStory.id, source: 'feed' })
+        .catch(() => {});
+    }
     if (lastViewedIdRef.current !== activeStory.id) {
       lastViewedIdRef.current = activeStory.id;
       markStoryViewed(activeStory.id, activeGroup.userId);
@@ -146,6 +178,10 @@ export function StoryViewer({
   }, [open, activeStory, activeGroup, markStoryViewed]);
 
   const effectivelyPaused = isPaused || isHolding || viewersOpen || deleteDialogOpen;
+
+  React.useEffect(() => {
+    viewTracking.setPaused(effectivelyPaused);
+  }, [effectivelyPaused, viewTracking]);
 
   // Auto-advance timer for image stories (or fallback)
   React.useEffect(() => {
@@ -171,9 +207,9 @@ export function StoryViewer({
   // Advance when progress reaches 100% on images
   React.useEffect(() => {
     if (open && activeStory?.mediaType !== 'video' && progress >= 100) {
-      handleNext();
+      advanceStory('auto');
     }
-  }, [open, activeStory, progress, handleNext]);
+  }, [open, activeStory, progress, advanceStory]);
 
   // Sync <video> play/pause state
   React.useEffect(() => {
@@ -191,7 +227,7 @@ export function StoryViewer({
     if (!open || viewersOpen || deleteDialogOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleExplicitClose();
       } else if (e.key === 'ArrowRight') {
         handleNext();
       } else if (e.key === 'ArrowLeft') {
@@ -203,7 +239,7 @@ export function StoryViewer({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, viewersOpen, deleteDialogOpen, onClose, handleNext, handlePrev]);
+  }, [open, viewersOpen, deleteDialogOpen, handleExplicitClose, handleNext, handlePrev]);
 
   if (!open || !activeGroup || !activeStory) {
     return null;
@@ -230,7 +266,7 @@ export function StoryViewer({
 
     // Swipe down to close
     if (dy > 80 && dx < 60) {
-      onClose();
+      handleExplicitClose();
       return;
     }
 
@@ -305,7 +341,7 @@ export function StoryViewer({
           <div className="flex items-center justify-between gap-2">
             <Link
               href={`/${activeGroup.username}`}
-              onClick={onClose}
+              onClick={handleExplicitClose}
               className="flex items-center gap-2.5 min-w-0"
             >
               <Avatar className="w-8 h-8 border border-white/30">
@@ -367,7 +403,7 @@ export function StoryViewer({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleExplicitClose}
                 aria-label="Close story viewer"
                 data-testid="close-story-viewer-btn"
                 className="p-1.5 rounded-full hover:bg-white/15 transition-colors"
@@ -400,9 +436,10 @@ export function StoryViewer({
                 const dur = Number.isFinite(vid.duration) && vid.duration > 0
                   ? vid.duration
                   : activeStory.duration || 15;
+                viewTracking.reportProgress(vid.currentTime, vid.currentTime, dur);
                 setProgress(Math.min(100, (vid.currentTime / dur) * 100));
               }}
-              onEnded={handleNext}
+              onEnded={() => advanceStory('auto')}
               className="w-full h-full object-contain pointer-events-none"
             />
           )}

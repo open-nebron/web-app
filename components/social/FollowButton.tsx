@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useFollow } from '@/hooks/useFollow';
 import { useProfile } from '@/hooks/use-profile';
+import type { FollowSourceType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { UserPlus, UserCheck, UserX } from 'lucide-react';
 
@@ -12,6 +13,7 @@ interface FollowButtonProps {
   userId: string;
   initialIsFollowing?: boolean;
   initialFollowerCount?: number;
+  followSource?: FollowSourceType;
   size?: 'default' | 'sm' | 'lg' | 'icon';
   className?: string;
   onFollowChange?: (isFollowing: boolean, newCount: number) => void;
@@ -21,6 +23,7 @@ export function FollowButton({
   userId,
   initialIsFollowing = false,
   initialFollowerCount = 0,
+  followSource = 'other',
   size = 'default',
   className,
   onFollowChange,
@@ -31,7 +34,8 @@ export function FollowButton({
   const { isFollowing, followerCount, isLoading, toggleFollow } = useFollow(
     userId,
     initialIsFollowing,
-    initialFollowerCount
+    initialFollowerCount,
+    followSource
   );
 
   React.useEffect(() => {

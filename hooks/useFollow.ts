@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { socialApi } from '@/lib/social-api';
+import type { FollowSourceType } from '@/lib/types';
 import { toast } from '@/components/ui/use-toast';
 
 export function useFollow(
   userId: string,
   initialIsFollowing: boolean = false,
-  initialFollowerCount: number = 0
+  initialFollowerCount: number = 0,
+  source: FollowSourceType = 'other'
 ) {
   const queryClient = useQueryClient();
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
@@ -23,7 +25,7 @@ export function useFollow(
   }, [initialFollowerCount]);
 
   const followMutation = useMutation({
-    mutationFn: () => socialApi.follow(userId),
+    mutationFn: () => socialApi.follow(userId, source),
     onMutate: () => {
       setIsFollowing(true);
       setFollowerCount((prev) => prev + 1);

@@ -12,6 +12,9 @@ interface VideoPlayerProps {
   shouldLoad: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
+  onProgress?: (currentTime: number, duration: number) => void;
+  onUserPauseChange?: (paused: boolean) => void;
+  onLoopComplete?: () => void;
   className?: string;
 }
 
@@ -22,9 +25,13 @@ export function VideoPlayer({
   shouldLoad,
   isMuted,
   onToggleMute,
+  onProgress,
+  onUserPauseChange,
+  onLoopComplete,
   className,
 }: VideoPlayerProps) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const prevTimeRef = React.useRef(0);
   const [userPaused, setUserPaused] = React.useState(false);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
@@ -39,8 +46,10 @@ export function VideoPlayer({
   React.useEffect(() => {
     if (!isActive) {
       setUserPaused(false);
+      onUserPauseChange?.(false);
+      prevTimeRef.current = 0;
     }
-  }, [isActive]);
+  }, [isActive, onUserPauseChange]);
 
   // Synchronize play/pause with IntersectionObserver active state
   React.useEffect(() => {
@@ -72,9 +81,11 @@ export function VideoPlayer({
 
     if (el.paused) {
       setUserPaused(false);
+      onUserPauseChange?.(false);
       el.play().catch(() => {});
     } else {
       setUserPaused(true);
+      onUserPauseChange?.(true);
       el.pause();
     }
   };
@@ -106,6 +117,16 @@ export function VideoPlayer({
         muted={isMuted}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onTimeUpdate={(e) => {
+          const el = e.currentTarget;
+          const dur = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
+          if (prevTimeRef.current > 2 && el.currentTime < 1 && prevTimeRef.current - el.currentTime > 1.5) {
+            onLoopComplete?.();
+          }
+          prevTimeRef.current = el.currentTime;
+          onProgress?.(el.currentTime, dur);
+        }}
+        onEnded={() => onLoopComplete?.()}
         onError={() => {
           if (shouldLoad) setHasError(true);
         }}

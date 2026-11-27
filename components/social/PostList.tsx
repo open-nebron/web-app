@@ -4,7 +4,7 @@ import * as React from 'react';
 import { PostCard } from './PostCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Post } from '@/lib/types';
+import type { AnalyticsSource, Post } from '@/lib/types';
 import { MessageSquareOff, Loader2 } from 'lucide-react';
 
 interface PostListProps {
@@ -15,6 +15,7 @@ interface PostListProps {
   fetchNextPage?: () => void;
   emptyMessage?: string;
   emptyDescription?: string;
+  impressionSource?: AnalyticsSource;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export function PostList({
   fetchNextPage,
   emptyMessage = 'No posts yet',
   emptyDescription = 'Posts will appear here once published.',
+  impressionSource = 'feed',
   className,
 }: PostListProps) {
   if (isLoading) {
@@ -61,7 +63,7 @@ export function PostList({
     <div className={className}>
       <div className="space-y-3">
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} impressionSource={impressionSource} />
         ))}
       </div>
 

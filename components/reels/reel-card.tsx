@@ -8,7 +8,8 @@ import { VideoPlayer } from './video-player';
 import { ReelActions } from './reel-actions';
 import { ReelFollowButton } from './reel-follow-button';
 import { ReelComments } from './reel-comments';
-import type { ReelItem } from '@/lib/types';
+import { useImpressionBeacon, useViewTracking } from '@/lib/beacons';
+import type { AnalyticsSource, ReelItem } from '@/lib/types';
 
 interface ReelCardProps {
   reel: ReelItem;
@@ -18,6 +19,7 @@ interface ReelCardProps {
   isMuted: boolean;
   onToggleMute: () => void;
   currentUserId?: string;
+  impressionSource?: AnalyticsSource;
 }
 
 export function ReelCard({
@@ -28,14 +30,53 @@ export function ReelCard({
   isMuted,
   onToggleMute,
   currentUserId,
+  impressionSource = 'feed',
 }: ReelCardProps) {
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [expandedCaption, setExpandedCaption] = React.useState(false);
+  const loopsCountRef = React.useRef(0);
 
   const isOwn = Boolean(currentUserId && currentUserId === reel.authorId);
 
+  const impressionRef = useImpressionBeacon<HTMLDivElement>(
+    'reel',
+    reel.id,
+    impressionSource,
+    isActive || shouldLoad
+  );
+  const viewTracking = useViewTracking('reel', reel.id, {
+    active: isActive,
+    source: impressionSource,
+    totalSeconds: reel.duration || 0,
+  });
+
+  React.useEffect(() => {
+    loopsCountRef.current = 0;
+  }, [reel.id, isActive]);
+
+  const handleVideoProgress = React.useCallback(
+    (currentTime: number, dur: number) => {
+      const effectiveDur = dur > 0 ? dur : reel.duration || 0;
+      const cumulative = loopsCountRef.current * effectiveDur + currentTime;
+      viewTracking.reportProgress(cumulative, currentTime, effectiveDur);
+      if (effectiveDur > 0 && currentTime / effectiveDur >= 0.9) {
+        viewTracking.markCompleted();
+      }
+    },
+    [reel.duration, viewTracking]
+  );
+
+  const handleLoopComplete = React.useCallback(() => {
+    loopsCountRef.current += 1;
+    viewTracking.markCompleted();
+    if (loopsCountRef.current >= 1) {
+      viewTracking.reportReplay();
+    }
+  }, [viewTracking]);
+
   return (
     <div
+      ref={impressionRef}
       data-testid={`reel-card-${reel.id}`}
       data-reel-id={reel.id}
       data-reel-index={index}
@@ -50,6 +91,9 @@ export function ReelCard({
           shouldLoad={shouldLoad}
           isMuted={isMuted}
           onToggleMute={onToggleMute}
+          onProgress={handleVideoProgress}
+          onUserPauseChange={viewTracking.setPaused}
+          onLoopComplete={handleLoopComplete}
         />
 
         {/* Gradient legibility overlay at bottom */}

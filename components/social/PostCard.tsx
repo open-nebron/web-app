@@ -19,6 +19,7 @@ import { useLike } from '@/hooks/useLike';
 import { useTogglePostSave, useShareContent } from '@/hooks/useSaved';
 import { useProfile } from '@/hooks/use-profile';
 import { useDeletePost, useEditPost } from '@/hooks/usePosts';
+import { useImpressionBeacon } from '@/lib/beacons';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
 import { Lightbox } from './Lightbox';
@@ -26,7 +27,7 @@ import { CommentSheet } from './CommentSheet';
 import { SharePostDialog } from './SharePostDialog';
 import { RichText } from './rich-text';
 import { ReportDialog } from '@/components/reports/ReportDialog';
-import type { Post } from '@/lib/types';
+import type { AnalyticsSource, Post } from '@/lib/types';
 import {
   Bookmark,
   Heart,
@@ -47,6 +48,7 @@ interface PostCardProps {
   className?: string;
   onPostClick?: (post: Post) => void;
   disableCommentSheet?: boolean;
+  impressionSource?: AnalyticsSource;
 }
 
 export function PostCard({
@@ -54,11 +56,13 @@ export function PostCard({
   className,
   onPostClick,
   disableCommentSheet = false,
+  impressionSource = 'feed',
 }: PostCardProps) {
   const router = useRouter();
   const { data: myProfile } = useProfile();
   const deleteMutation = useDeletePost();
   const editMutation = useEditPost(post.id);
+  const impressionRef = useImpressionBeacon<HTMLElement>('post', post.id, impressionSource);
 
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false);
@@ -214,6 +218,7 @@ export function PostCard({
   return (
     <>
       <article
+        ref={impressionRef}
         onClick={handleCardClick}
         className={cn(
           'p-4 border rounded-xl bg-card transition-colors duration-150',

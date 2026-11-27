@@ -2,6 +2,7 @@ import { apiFetch } from './api';
 import { normalizeStorageUrl } from './utils';
 import type {
   Comment,
+  FollowSourceType,
   HashtagPostsResponse,
   Post,
   PostImageConfirmResponse,
@@ -14,9 +15,10 @@ import type {
 } from './types';
 
 export const socialApi = {
-  async follow(userId: string): Promise<void> {
+  async follow(userId: string, source?: FollowSourceType): Promise<void> {
     return apiFetch<void>(`/api/core/users/${userId}/follow`, {
       method: 'POST',
+      headers: source ? { 'X-Follow-Source': source } : undefined,
     });
   },
 

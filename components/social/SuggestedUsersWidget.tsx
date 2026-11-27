@@ -88,6 +88,7 @@ export function SuggestedUsersWidget() {
                 userId={user.userId}
                 initialIsFollowing={false}
                 initialFollowerCount={user.followerCount}
+                followSource="suggestion"
                 size="sm"
               />
             </div>

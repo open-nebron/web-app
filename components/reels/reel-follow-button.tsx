@@ -17,7 +17,7 @@ export function ReelFollowButton({
   className,
 }: ReelFollowButtonProps) {
   const { data: myProfile } = useProfile();
-  const { isFollowing, isLoading, toggleFollow } = useFollow(userId, initialIsFollowing, 0);
+  const { isFollowing, isLoading, toggleFollow } = useFollow(userId, initialIsFollowing, 0, 'reel');
 
   if (myProfile?.userId && myProfile.userId === userId) {
     return null;

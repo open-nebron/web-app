@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { chatApi } from '@/lib/chat-api';
+import { useProfileVisitBeacon } from '@/lib/beacons';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,8 @@ export default function PublicProfilePage() {
   const currentUser = useAuthStore((s) => s.user);
   const { data: myProfile } = useProfile();
   const { data: profile, isLoading, isError } = usePublicProfile(username);
+
+  useProfileVisitBeacon(profile?.userId, currentUser?.userId);
   const {
     posts,
     isLoading: isPostsLoading,
@@ -227,6 +230,7 @@ export default function PublicProfilePage() {
               userId={profile.userId}
               initialIsFollowing={profile.isFollowedByViewer}
               initialFollowerCount={profile.followerCount}
+              followSource="profile"
               size="sm"
             />
 
@@ -311,6 +315,7 @@ export default function PublicProfilePage() {
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}
               fetchNextPage={fetchNextPage}
+              impressionSource="profile"
               emptyMessage="No posts yet"
               emptyDescription={`@${profile.username} hasn't posted anything yet.`}
             />
@@ -328,6 +333,7 @@ export default function PublicProfilePage() {
                 hasNextPage={hasNextLikedPage}
                 isFetchingNextPage={isFetchingNextLikedPage}
                 fetchNextPage={fetchNextLikedPage}
+                impressionSource="profile"
                 emptyMessage="No liked posts yet"
                 emptyDescription="Posts you like on Nebron will appear here."
               />

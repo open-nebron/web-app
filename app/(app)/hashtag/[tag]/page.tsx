@@ -79,7 +79,7 @@ export default function HashtagPage() {
         ) : posts.length > 0 ? (
           <div className="space-y-4" data-testid="hashtag-posts-list">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} impressionSource="hashtag" />
             ))}
 
             {hasNextPage && (
