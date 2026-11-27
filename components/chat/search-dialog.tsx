@@ -14,10 +14,26 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSearchStore } from '@/lib/search-store';
 import { chatApi } from '@/lib/chat-api';
+import { exploreApi } from '@/lib/explore-api';
+import { socialApi } from '@/lib/social-api';
 import type { SearchMessageResult, PublicUser } from '@/lib/chat-types';
+import type { Post, ReelItem } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, X, Loader2, MessageSquare, ArrowRight, User } from 'lucide-react';
+import {
+  Search,
+  X,
+  Loader2,
+  MessageSquare,
+  ArrowRight,
+  User,
+  FileText,
+  Film,
+  Hash,
+  Heart,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+
+type SearchTab = 'posts' | 'reels' | 'people' | 'hashtags' | 'messages';
 
 function sanitizeHtml(html: string): string {
   if (typeof window === 'undefined') return html;
@@ -33,9 +49,9 @@ export function SearchDialog() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [scope, setScope] = useState<'conversation' | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<SearchTab>('posts');
   const [, startTransition] = useTransition();
 
-  // Register global Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -47,16 +63,15 @@ export function SearchDialog() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSearch, conversationId]);
 
-  // Sync default scope when dialog opens
   useEffect(() => {
     if (isOpen) {
       setScope(conversationId ? 'conversation' : 'all');
+      setActiveTab(conversationId ? 'messages' : 'posts');
       setQuery('');
       setDebouncedQuery('');
     }
   }, [isOpen, conversationId]);
 
-  // 300ms debounce on search input
   useEffect(() => {
     const timer = setTimeout(() => {
       startTransition(() => {
@@ -69,22 +84,57 @@ export function SearchDialog() {
   const targetConvId = scope === 'conversation' && conversationId ? conversationId : undefined;
   const trimmedQuery = debouncedQuery.trim();
   const isSearchActive = trimmedQuery.length > 0;
+  const effectiveTab: SearchTab = scope === 'conversation' ? 'messages' : activeTab;
 
-  const { data: results = [], isLoading, isFetching } = useQuery({
+  const { data: msgResults = [], isLoading: isLoadingMsgs, isFetching: isFetchingMsgs } = useQuery({
     queryKey: ['searchMessages', trimmedQuery, targetConvId],
     queryFn: () => chatApi.searchMessages(trimmedQuery, targetConvId),
-    enabled: isOpen && isSearchActive,
+    enabled: isOpen && isSearchActive && effectiveTab === 'messages',
     staleTime: 10 * 1000,
   });
 
   const { data: userResults = [], isLoading: isLoadingUsers, isFetching: isFetchingUsers } = useQuery<PublicUser[]>({
     queryKey: ['searchUsers', trimmedQuery],
     queryFn: () => chatApi.searchUsers(trimmedQuery),
-    enabled: isOpen && isSearchActive && scope === 'all',
+    enabled: isOpen && isSearchActive && scope === 'all' && effectiveTab === 'people',
     staleTime: 10 * 1000,
   });
 
-  const handleSelectResult = (item: SearchMessageResult) => {
+  const { data: postSearchRes, isLoading: isLoadingPosts, isFetching: isFetchingPosts } = useQuery({
+    queryKey: ['searchSocialPosts', trimmedQuery],
+    queryFn: () => exploreApi.searchSocial({ q: trimmedQuery, type: 'posts', limit: 15 }),
+    enabled: isOpen && isSearchActive && scope === 'all' && effectiveTab === 'posts',
+    staleTime: 10 * 1000,
+  });
+
+  const { data: reelSearchRes, isLoading: isLoadingReels, isFetching: isFetchingReels } = useQuery({
+    queryKey: ['searchSocialReels', trimmedQuery],
+    queryFn: () => exploreApi.searchSocial({ q: trimmedQuery, type: 'reels', limit: 15 }),
+    enabled: isOpen && isSearchActive && scope === 'all' && effectiveTab === 'reels',
+    staleTime: 10 * 1000,
+  });
+
+  const { data: trendingTags = [] } = useQuery({
+    queryKey: ['searchHashtags', trimmedQuery],
+    queryFn: () => socialApi.getTrendingHashtags(30),
+    enabled: isOpen && scope === 'all' && effectiveTab === 'hashtags',
+    staleTime: 30 * 1000,
+  });
+
+  const cleanTagQuery = trimmedQuery.replace(/^#/, '').toLowerCase();
+  const matchingHashtags = React.useMemo(() => {
+    if (!cleanTagQuery) return trendingTags;
+    const filtered = trendingTags.filter((t) => t.tag.includes(cleanTagQuery));
+    if (
+      /^[a-z0-9_]{1,50}$/.test(cleanTagQuery) &&
+      !filtered.some((t) => t.tag === cleanTagQuery)
+    ) {
+      return [{ tag: cleanTagQuery, postCount: 0 }, ...filtered];
+    }
+    return filtered;
+  }, [trendingTags, cleanTagQuery]);
+
+  const handleSelectMessage = (item: SearchMessageResult) => {
     closeSearch();
     router.push(`/chat/${item.conversationId}?messageId=${item.id}`);
   };
@@ -94,58 +144,60 @@ export function SearchDialog() {
     router.push(`/${user.username}`);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      closeSearch();
-    }
-  };
+  const postItems = (postSearchRes?.items ?? []) as Post[];
+  const reelItems = (reelSearchRes?.items ?? []) as ReelItem[];
+
+  const isBusy =
+    (effectiveTab === 'messages' && (isLoadingMsgs || isFetchingMsgs)) ||
+    (effectiveTab === 'people' && (isLoadingUsers || isFetchingUsers)) ||
+    (effectiveTab === 'posts' && (isLoadingPosts || isFetchingPosts)) ||
+    (effectiveTab === 'reels' && (isLoadingReels || isFetchingReels));
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[550px] p-0 gap-0 overflow-hidden shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && closeSearch()}>
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden bg-background">
         <DialogHeader className="sr-only">
-          <DialogTitle>Search messages</DialogTitle>
+          <DialogTitle>Search Nebron</DialogTitle>
         </DialogHeader>
 
-        {/* Search Input Bar */}
-        <div className="flex items-center px-4 border-b h-14 gap-3 bg-background">
+        {/* Search Input Header */}
+        <div className="flex items-center px-4 py-3 border-b gap-2">
           <Search className="w-5 h-5 text-muted-foreground shrink-0" />
           <Input
+            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              scope === 'all' ? 'Search people and messages...' : 'Search messages in this conversation...'
+              scope === 'conversation'
+                ? 'Search messages in this conversation...'
+                : 'Search posts, reels, people, #hashtags, or messages...'
             }
-            className="flex-1 h-9 border-0 shadow-none focus-visible:ring-0 px-0 text-base"
-            autoFocus
+            data-testid="global-search-input"
+            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base h-9 px-1 bg-transparent"
           />
-          {query ? (
+          {query && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => {
-                setQuery('');
-                setDebouncedQuery('');
-              }}
+              onClick={() => setQuery('')}
               aria-label="Clear search query"
             >
               <X className="w-4 h-4" />
             </Button>
-          ) : (
-            <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground bg-muted border rounded">
-              ESC
-            </kbd>
           )}
         </div>
 
-        {/* Scope Toggle (if conversationId is available) */}
+        {/* Scope Toggle if opened from a conversation */}
         {conversationId && (
           <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/40 text-xs">
             <span className="text-muted-foreground font-medium">Scope:</span>
             <button
               type="button"
-              onClick={() => setScope('conversation')}
+              onClick={() => {
+                setScope('conversation');
+                setActiveTab('messages');
+              }}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 scope === 'conversation'
                   ? 'bg-primary text-primary-foreground shadow-sm'
@@ -163,49 +215,123 @@ export function SearchDialog() {
                   : 'bg-background hover:bg-muted text-foreground border'
               }`}
             >
-              People &amp; Messages
+              All Nebron
             </button>
           </div>
         )}
 
-        {/* Results / Empty / Loading Container */}
-        <div className="max-h-[400px] overflow-y-auto p-2 space-y-2">
-          {(isLoading || isFetching || (scope === 'all' && (isLoadingUsers || isFetchingUsers))) && (
+        {/* Search Tabs: Posts | Reels | People | Hashtags | Messages */}
+        {scope === 'all' && (
+          <div className="flex items-center gap-1 px-4 py-2 border-b bg-muted/20 overflow-x-auto">
+            {(
+              [
+                { id: 'posts', label: 'Posts', icon: FileText },
+                { id: 'reels', label: 'Reels', icon: Film },
+                { id: 'people', label: 'People', icon: User },
+                { id: 'hashtags', label: 'Hashtags', icon: Hash },
+                { id: 'messages', label: 'Messages', icon: MessageSquare },
+              ] as const
+            ).map((t) => {
+              const Icon = t.icon;
+              const active = effectiveTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setActiveTab(t.id)}
+                  data-testid={`search-tab-${t.id}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors shrink-0 ${
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Results Panel */}
+        <div className="max-h-[420px] overflow-y-auto p-2 space-y-2">
+          {isBusy && (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
               <p className="text-xs">Searching...</p>
             </div>
           )}
 
-          {!isLoading &&
-            !(scope === 'all' && isLoadingUsers) &&
-            isSearchActive &&
-            results.length === 0 &&
-            (scope !== 'all' || userResults.length === 0) && (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2 text-center px-4">
-                <MessageSquare className="w-8 h-8 opacity-40 mb-1" />
-                <p className="text-sm font-medium text-foreground">No results found</p>
-                <p className="text-xs max-w-xs text-muted-foreground">
-                  No matches found for &ldquo;{trimmedQuery}&rdquo;{' '}
-                  {scope === 'conversation' ? 'in this conversation' : 'across people or messages'}.
-                </p>
-              </div>
-            )}
-
-          {!isSearchActive && (
+          {!isSearchActive && effectiveTab !== 'hashtags' && (
             <div className="py-8 text-center text-xs text-muted-foreground px-4">
-              {scope === 'all'
-                ? 'Type to search people by name/username or search chat messages'
-                : 'Type to search messages with instant matching and highlight'}
+              Type a keyword to search across {effectiveTab}.
             </div>
           )}
 
-          {scope === 'all' && !isLoadingUsers && userResults.length > 0 && (
-            <div className="space-y-1">
-              <div className="px-2 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5" />
-                People
+          {/* Posts tab */}
+          {!isBusy && isSearchActive && effectiveTab === 'posts' && (
+            postItems.length > 0 ? (
+              <div className="divide-y divide-border/30" data-testid="search-posts-results">
+                {postItems.map((post) => (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => {
+                      closeSearch();
+                      router.push(`/posts/${post.id}`);
+                    }}
+                    className="w-full p-3 rounded-md hover:bg-accent transition-colors text-left space-y-1"
+                  >
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">@{post.author.username}</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Heart className="w-3 h-3" /> {post.likeCount}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground line-clamp-2">{post.body}</p>
+                  </button>
+                ))}
               </div>
+            ) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">
+                No posts found matching &ldquo;{trimmedQuery}&rdquo;.
+              </div>
+            )
+          )}
+
+          {/* Reels tab */}
+          {!isBusy && isSearchActive && effectiveTab === 'reels' && (
+            reelItems.length > 0 ? (
+              <div className="divide-y divide-border/30" data-testid="search-reels-results">
+                {reelItems.map((reel) => (
+                  <button
+                    key={reel.id}
+                    type="button"
+                    onClick={() => {
+                      closeSearch();
+                      router.push(`/reels/${reel.id}`);
+                    }}
+                    className="w-full p-3 rounded-md hover:bg-accent transition-colors text-left space-y-1"
+                  >
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">@{reel.author.username}</span>
+                      <span>{reel.viewCount} views</span>
+                    </div>
+                    <p className="text-sm text-foreground line-clamp-2">{reel.caption || 'Reel'}</p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">
+                No reels found matching &ldquo;{trimmedQuery}&rdquo;.
+              </div>
+            )
+          )}
+
+          {/* People tab */}
+          {!isBusy && isSearchActive && effectiveTab === 'people' && (
+            userResults.length > 0 ? (
               <div className="divide-y divide-border/30">
                 {userResults.map((u) => {
                   const displayName = u.name || u.username;
@@ -234,25 +360,52 @@ export function SearchDialog() {
                   );
                 })}
               </div>
-            </div>
+            ) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">
+                No people found matching &ldquo;{trimmedQuery}&rdquo;.
+              </div>
+            )
           )}
 
-          {!isLoading && results.length > 0 && (
-            <div className="space-y-1">
-              {scope === 'all' && (
-                <div className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  Messages
-                </div>
-              )}
+          {/* Hashtags tab */}
+          {effectiveTab === 'hashtags' && (
+            matchingHashtags.length > 0 ? (
+              <div className="divide-y divide-border/30" data-testid="search-hashtags-results">
+                {matchingHashtags.map((tagItem) => (
+                  <button
+                    key={tagItem.tag}
+                    type="button"
+                    onClick={() => {
+                      closeSearch();
+                      router.push(`/hashtag/${encodeURIComponent(tagItem.tag)}`);
+                    }}
+                    className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-accent transition-colors text-left"
+                  >
+                    <span className="text-sm font-medium text-primary">#{tagItem.tag}</span>
+                    {tagItem.postCount > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {tagItem.postCount} posts
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">
+                No matching hashtags found.
+              </div>
+            )
+          )}
+
+          {/* Messages tab */}
+          {!isBusy && isSearchActive && effectiveTab === 'messages' && (
+            msgResults.length > 0 ? (
               <div className="divide-y divide-border/30">
-                {results.map((item) => {
+                {msgResults.map((item) => {
                   const formattedHtml = sanitizeHtml(item.highlightedBody || item.body);
                   let relativeTime = '';
                   try {
-                    relativeTime = formatDistanceToNow(new Date(item.createdAt), {
-                      addSuffix: true,
-                    });
+                    relativeTime = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
                   } catch {
                     relativeTime = '';
                   }
@@ -260,7 +413,7 @@ export function SearchDialog() {
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleSelectResult(item)}
+                      onClick={() => handleSelectMessage(item)}
                       className="group flex flex-col p-3 rounded-md hover:bg-accent cursor-pointer transition-colors text-left"
                     >
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
@@ -279,7 +432,11 @@ export function SearchDialog() {
                   );
                 })}
               </div>
-            </div>
+            ) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">
+                No messages found matching &ldquo;{trimmedQuery}&rdquo;.
+              </div>
+            )
           )}
         </div>
       </DialogContent>

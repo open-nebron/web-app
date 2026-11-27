@@ -521,3 +521,46 @@ export interface AudienceAnalyticsResponse {
   activityHeatmap: number[][];
 }
 
+export type ExploreTrendingType = 'posts' | 'reels';
+export type ExploreTrendingPeriod = '24h' | '7d';
+export type ExploreSuggestionReason = 'friends_of_friends' | 'similar_interests' | 'popular';
+
+export interface ExploreTrendingResponse<T = Post | ReelItem> {
+  type: ExploreTrendingType;
+  period: ExploreTrendingPeriod;
+  items: T[];
+}
+
+export interface ExploreSuggestionItem {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  followerCount: number;
+  reason: ExploreSuggestionReason;
+  contextLabel?: string;
+}
+
+export interface UserProfileStats {
+  userId: string;
+  postCount: number;
+  reelCount: number;
+  totalLikesReceived: number;
+  totalViewsReceived: number;
+  followerCount: number;
+  followingCount: number;
+  online?: boolean;
+  lastSeenAt?: string | null;
+  savedCount?: number;
+  totalSharesReceived?: number;
+  totalSavesReceived?: number;
+}
+
+export type SocialSearchType = 'posts' | 'reels';
+
+export interface SocialSearchResponse<T = Post | ReelItem> {
+  query: string;
+  type: SocialSearchType;
+  items: T[];
+}
+

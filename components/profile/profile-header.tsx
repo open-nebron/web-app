@@ -19,7 +19,8 @@ import { StoryComposer } from '@/components/stories/story-composer';
 import { StoryViewer } from '@/components/stories/story-viewer';
 import { useUserStories } from '@/hooks/useStories';
 import { socialApi } from '@/lib/social-api';
-import type { UserFollowItem, UserProfile } from '@/lib/types';
+import { exploreApi } from '@/lib/explore-api';
+import type { UserFollowItem, UserProfile, UserProfileStats } from '@/lib/types';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 
 interface ProfileHeaderProps {
@@ -41,6 +42,14 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
   const handleFollowChange = React.useCallback((_isFollowing: boolean, newCount: number) => {
     setDisplayFollowerCount(newCount);
   }, []);
+
+  const { data: profileStats } = useQuery<UserProfileStats>({
+    queryKey: ['user-stats', isOwnProfile ? 'me' : profile.userId],
+    queryFn: () =>
+      isOwnProfile ? exploreApi.getMyStats() : exploreApi.getUserStats(profile.userId),
+    enabled: Boolean(profile.userId),
+    staleTime: 30_000,
+  });
 
   const { data: followListUsers = [], isLoading: isLoadingFollowList } = useQuery<UserFollowItem[]>({
     queryKey: [followListKind || 'followers', profile.userId],
@@ -171,6 +180,7 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
                 userId={profile.userId}
                 initialIsFollowing={profile.isFollowedByViewer}
                 initialFollowerCount={profile.followerCount}
+                followSource="profile"
                 onFollowChange={handleFollowChange}
               />
               <Button
@@ -199,8 +209,11 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
           </p>
         </div>
 
-        {/* Stats: Posts, Followers, Following */}
-        <div className="flex items-center gap-6 mt-3 text-sm">
+        {/* Stats: Posts, Reels, Followers, Following, Total likes */}
+        <div
+          className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 text-sm"
+          data-testid="profile-stats-row"
+        >
           <button
             type="button"
             onClick={() => {
@@ -208,15 +221,25 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
             }}
             className="hover:underline focus:outline-none text-left"
           >
-            <span className="font-semibold text-foreground">{profile.postCount ?? 0}</span>{' '}
+            <span className="font-semibold text-foreground" data-testid="profile-stat-posts">
+              {profileStats?.postCount ?? profile.postCount ?? 0}
+            </span>{' '}
             <span className="text-muted-foreground">Posts</span>
           </button>
+          <div>
+            <span className="font-semibold text-foreground" data-testid="profile-stat-reels">
+              {profileStats?.reelCount ?? 0}
+            </span>{' '}
+            <span className="text-muted-foreground">Reels</span>
+          </div>
           <button
             type="button"
             onClick={() => setFollowListKind('followers')}
             className="hover:underline focus:outline-none text-left"
           >
-            <span className="font-semibold text-foreground">{displayFollowerCount}</span>{' '}
+            <span className="font-semibold text-foreground" data-testid="profile-stat-followers">
+              {displayFollowerCount}
+            </span>{' '}
             <span className="text-muted-foreground">Followers</span>
           </button>
           <button
@@ -224,9 +247,17 @@ export function ProfileHeader({ profile, isOwnProfile = false }: ProfileHeaderPr
             onClick={() => setFollowListKind('following')}
             className="hover:underline focus:outline-none text-left"
           >
-            <span className="font-semibold text-foreground">{profile.followingCount ?? 0}</span>{' '}
+            <span className="font-semibold text-foreground" data-testid="profile-stat-following">
+              {profileStats?.followingCount ?? profile.followingCount ?? 0}
+            </span>{' '}
             <span className="text-muted-foreground">Following</span>
           </button>
+          <div>
+            <span className="font-semibold text-foreground" data-testid="profile-stat-likes">
+              {profileStats?.totalLikesReceived ?? 0}
+            </span>{' '}
+            <span className="text-muted-foreground">Total likes</span>
+          </div>
         </div>
 
         {/* Bio */}
