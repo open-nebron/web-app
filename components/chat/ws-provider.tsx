@@ -10,9 +10,12 @@ import {
   applyCommentDeletedEvent,
   applyCommentLikeEvent,
   applyCommentRepliedEvent,
+  applyCommentUpdatedEvent,
   type CommentDeletedWsPayload,
   type CommentLikedWsPayload,
+  type CommentPinnedWsPayload,
   type CommentRepliedWsPayload,
+  type CommentUpdatedWsPayload,
 } from '@/lib/comment-cache';
 
 interface WsSendResult {
@@ -360,6 +363,32 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubCommentUpdated = client.on('core.comment.updated', (data: unknown) => {
+      const raw = data as { payload?: CommentUpdatedWsPayload };
+      const payload = raw?.payload ?? (data as CommentUpdatedWsPayload);
+      if (payload?.commentId && typeof payload.body === 'string') {
+        applyCommentUpdatedEvent(queryClient, payload);
+      }
+    });
+
+    const unsubCommentPinned = client.on('core.comment.pinned', (data: unknown) => {
+      const raw = data as { payload?: CommentPinnedWsPayload };
+      const payload = raw?.payload ?? (data as CommentPinnedWsPayload);
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
+    const unsubCommentUnpinned = client.on('core.comment.unpinned', (data: unknown) => {
+      const raw = data as { payload?: CommentPinnedWsPayload };
+      const payload = raw?.payload ?? (data as CommentPinnedWsPayload);
+      if (payload?.postId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      }
+    });
+
     const unsubPostEdited = client.on('core.post.edited', (data: unknown) => {
       const raw = data as { payload?: { postId?: string } };
       const payload = raw?.payload ?? (data as { postId?: string });
@@ -414,6 +443,9 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubCommentReplied();
       unsubCommentLiked();
       unsubCommentUnliked();
+      unsubCommentUpdated();
+      unsubCommentPinned();
+      unsubCommentUnpinned();
       unsubPostEdited();
       unsubStoryCreated();
       unsubStoryDeleted();

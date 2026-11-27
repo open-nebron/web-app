@@ -23,6 +23,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Lightbox } from './Lightbox';
 import { CommentSheet } from './CommentSheet';
 import { SharePostDialog } from './SharePostDialog';
+import { RichText } from './rich-text';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { Post } from '@/lib/types';
 import {
@@ -376,7 +377,7 @@ export function PostCard({
             ) : (
               <>
                 <p className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                  {post.body}
+                  <RichText text={post.body} />
                 </p>
 
                 {/* Post Image */}

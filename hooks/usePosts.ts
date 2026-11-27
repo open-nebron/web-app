@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { socialApi } from '@/lib/social-api';
 import { toast } from '@/components/ui/use-toast';
-import type { Post } from '@/lib/types';
+import type { HashtagPostsResponse, Post, TrendingHashtag } from '@/lib/types';
 
 export function useUserPosts(userId?: string | null) {
   const query = useInfiniteQuery<Post[]>({
@@ -45,6 +45,8 @@ export function useCreatePost() {
       queryClient.invalidateQueries({ queryKey: ['posts', newPost.author.userId] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['hashtag-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-hashtags'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['user-by-username'] });
@@ -71,6 +73,8 @@ export function useDeletePost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['hashtag-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-hashtags'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['user-by-username'] });
@@ -101,6 +105,8 @@ export function useEditPost(postId: string) {
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['popular-posts'] });
       queryClient.invalidateQueries({ queryKey: ['my-likes'] });
+      queryClient.invalidateQueries({ queryKey: ['hashtag-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-hashtags'] });
       toast({
         title: 'Post updated',
         description: 'Your changes have been saved.',
@@ -150,4 +156,49 @@ export function useMyLikedPosts(enabled: boolean = true) {
     ...query,
     posts,
   };
+}
+
+export function useHashtagPosts(tag: string) {
+  const normalizedTag = tag.replace(/^#/, '').trim().toLowerCase();
+
+  const query = useInfiniteQuery<HashtagPostsResponse>({
+    queryKey: ['hashtag-posts', normalizedTag],
+    queryFn: async ({ pageParam }) => {
+      if (!normalizedTag) {
+        return { tag: '', postCount: 0, data: [], hasMore: false };
+      }
+      return socialApi.getHashtagPosts(normalizedTag, {
+        limit: 20,
+        before: pageParam as string | undefined,
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.hasMore || lastPage.data.length === 0) return undefined;
+      return lastPage.data[lastPage.data.length - 1].createdAt;
+    },
+    enabled: Boolean(normalizedTag),
+    staleTime: 20 * 1000,
+  });
+
+  const posts = React.useMemo(() => {
+    return query.data?.pages.flatMap((p) => p.data) ?? [];
+  }, [query.data]);
+
+  const postCount = query.data?.pages[0]?.postCount ?? 0;
+
+  return {
+    ...query,
+    posts,
+    postCount,
+  };
+}
+
+export function useTrendingHashtags(limit: number = 10, enabled: boolean = true) {
+  return useQuery<TrendingHashtag[]>({
+    queryKey: ['trending-hashtags', limit],
+    queryFn: () => socialApi.getTrendingHashtags(limit),
+    enabled,
+    staleTime: 60 * 1000,
+  });
 }

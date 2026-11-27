@@ -11,6 +11,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CommentList } from '@/components/social/comment-list';
+import {
+  TokenAutocompleteDropdown,
+  useTokenComposerInput,
+} from '@/components/social/token-autocomplete';
 import { useCreateComment } from '@/hooks/useComments';
 
 interface ReelCommentsProps {
@@ -30,14 +34,26 @@ export function ReelComments({
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const addComment = useCreateComment(reelId, 'reel');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitReelComment = React.useCallback(async () => {
     const trimmed = body.trim();
     if (!trimmed || trimmed.length > 300 || addComment.isPending) return;
     await addComment.mutateAsync({ body: trimmed });
     setBody('');
     inputRef.current?.focus();
+  }, [addComment, body]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitReelComment();
   };
+
+  const autocomplete = useTokenComposerInput({
+    value: body,
+    setValue: setBody,
+    inputRef,
+    onSubmit: submitReelComment,
+    submitOnEnter: true,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,16 +76,30 @@ export function ReelComments({
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-3 border-t flex items-center gap-2 bg-muted/20">
-          <Input
-            ref={inputRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            maxLength={300}
-            placeholder="Add a comment..."
-            data-testid="reel-comment-input"
-            className="flex-1"
-          />
+        <form onSubmit={handleSubmit} className="p-3 border-t flex items-center gap-2 bg-muted/20 relative">
+          <div className="relative flex-1">
+            <TokenAutocompleteDropdown
+              activeToken={autocomplete.activeToken}
+              options={autocomplete.options}
+              isLoading={autocomplete.isLoading}
+              highlightedIndex={autocomplete.highlightedIndex}
+              position="above"
+              onSelect={autocomplete.handleSelectOption}
+            />
+            <Input
+              ref={inputRef}
+              value={body}
+              onChange={autocomplete.handleInputChange}
+              onClick={autocomplete.handleCursorEvent}
+              onKeyUp={autocomplete.handleCursorEvent}
+              onBlur={autocomplete.clearAutocomplete}
+              onKeyDown={autocomplete.handleKeyDown}
+              maxLength={300}
+              placeholder="Add a comment..."
+              data-testid="reel-comment-input"
+              className="w-full"
+            />
+          </div>
           <Button
             type="submit"
             size="icon"

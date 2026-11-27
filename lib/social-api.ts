@@ -2,9 +2,11 @@ import { apiFetch } from './api';
 import { normalizeStorageUrl } from './utils';
 import type {
   Comment,
+  HashtagPostsResponse,
   Post,
   PostImageConfirmResponse,
   PostImageUploadUrlResponse,
+  TrendingHashtag,
   UserFollowItem,
   UserSuggestionItem,
 } from './types';
@@ -210,6 +212,54 @@ export const socialApi = {
     return apiFetch<void>(`/api/core/comments/${commentId}`, {
       method: 'DELETE',
     });
+  },
+
+  async editComment(commentId: string, body: string): Promise<Comment> {
+    return apiFetch<Comment>(`/api/core/comments/${encodeURIComponent(commentId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ body }),
+    });
+  },
+
+  async pinComment(postId: string, commentId: string): Promise<void> {
+    return apiFetch<void>(
+      `/api/core/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/pin`,
+      { method: 'POST' }
+    );
+  },
+
+  async unpinComment(postId: string, commentId: string): Promise<void> {
+    return apiFetch<void>(
+      `/api/core/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/pin`,
+      { method: 'DELETE' }
+    );
+  },
+
+  async searchUsers(q: string, limit: number = 8): Promise<UserFollowItem[]> {
+    const trimmed = q.trim();
+    if (!trimmed) return [];
+    const res = await apiFetch<{ users?: UserFollowItem[] } | UserFollowItem[]>(
+      `/api/core/users/search?q=${encodeURIComponent(trimmed)}&limit=${limit}`
+    );
+    return Array.isArray(res) ? res : res?.users || [];
+  },
+
+  async getHashtagPosts(
+    tag: string,
+    params: { limit?: number; before?: string } = {}
+  ): Promise<HashtagPostsResponse> {
+    const normalized = tag.replace(/^#/, '').trim().toLowerCase();
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<HashtagPostsResponse>(
+      `/api/core/hashtags/${encodeURIComponent(normalized)}/posts${query}`
+    );
+  },
+
+  async getTrendingHashtags(limit: number = 10): Promise<TrendingHashtag[]> {
+    return apiFetch<TrendingHashtag[]>(`/api/core/hashtags/trending?limit=${limit}`);
   },
 
   async getUserPosts(

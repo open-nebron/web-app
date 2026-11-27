@@ -38,6 +38,24 @@ export interface CommentDeletedWsPayload {
   at?: string;
 }
 
+export interface CommentUpdatedWsPayload {
+  commentId: string;
+  postId: string;
+  reelId?: string;
+  targetType?: 'post' | 'reel';
+  body: string;
+  editedAt: string;
+  mentions?: string[];
+  hashtags?: string[];
+}
+
+export interface CommentPinnedWsPayload {
+  commentId: string;
+  postId: string;
+  by: string;
+  at: string;
+}
+
 function updateCommentListLike(
   list: Comment[],
   commentId: string,
@@ -265,5 +283,86 @@ export function applyCommentDeletedEvent(
   }
   queryClient.setQueriesData<Comment[]>({ queryKey: ['comment-replies'] }, (old) =>
     Array.isArray(old) ? old.filter((r) => r.id !== payload.commentId) : old
+  );
+}
+
+function updateCommentListBody(
+  list: Comment[],
+  payload: CommentUpdatedWsPayload
+): Comment[] {
+  let changed = false;
+  const applyPatch = (c: Comment): Comment => ({
+    ...c,
+    body: payload.body,
+    editedAt: payload.editedAt,
+    ...(payload.mentions !== undefined ? { mentions: payload.mentions } : {}),
+    ...(payload.hashtags !== undefined ? { hashtags: payload.hashtags } : {}),
+  });
+
+  const next = list.map((comment) => {
+    let nextComment = comment;
+    if (comment.id === payload.commentId) {
+      changed = true;
+      nextComment = applyPatch(nextComment);
+    }
+    if (comment.topReplies && comment.topReplies.some((r) => r.id === payload.commentId)) {
+      changed = true;
+      nextComment = {
+        ...nextComment,
+        topReplies: comment.topReplies.map((reply) =>
+          reply.id === payload.commentId ? applyPatch(reply) : reply
+        ),
+      };
+    }
+    return nextComment;
+  });
+  return changed ? next : list;
+}
+
+/**
+ * Applies a real-time core.comment.updated payload into visible comment & post preview caches.
+ */
+export function applyCommentUpdatedEvent(
+  queryClient: QueryClient,
+  payload: CommentUpdatedWsPayload
+): void {
+  const targetId = payload.reelId || payload.postId;
+  if (!payload.commentId) return;
+
+  if (targetId) {
+    queryClient.setQueriesData<Comment[]>({ queryKey: ['comments', targetId] }, (old) =>
+      Array.isArray(old) ? updateCommentListBody(old, payload) : old
+    );
+    queryClient.setQueriesData<Comment[]>({ queryKey: ['reel-comments', targetId] }, (old) =>
+      Array.isArray(old) ? updateCommentListBody(old, payload) : old
+    );
+
+    if (payload.targetType !== 'reel') {
+      const updatePostComments = (p: Post): Post =>
+        p.id === targetId && Array.isArray(p.comments)
+          ? { ...p, comments: updateCommentListBody(p.comments, payload) }
+          : p;
+
+      queryClient.setQueryData<Post>(['post', targetId], (old) =>
+        old ? updatePostComments(old) : old
+      );
+      queryClient.setQueriesData<Post[]>({ queryKey: ['posts'] }, (old) =>
+        Array.isArray(old) ? old.map(updatePostComments) : old
+      );
+      queryClient.setQueriesData<any>({ queryKey: ['feed'] }, (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: Array.isArray(page.data) ? page.data.map(updatePostComments) : page.data,
+          })),
+        };
+      });
+    }
+  }
+
+  queryClient.setQueriesData<Comment[]>({ queryKey: ['comment-replies'] }, (old) =>
+    Array.isArray(old) ? updateCommentListBody(old, payload) : old
   );
 }

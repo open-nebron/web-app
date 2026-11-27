@@ -332,5 +332,35 @@ describe('Social API', () => {
         '/api/core/users/me/likes?limit=10&before=2026-11-25T12%3A00%3A00.000Z'
       );
     });
+
+    it('edits, pins, unpins comments and queries hashtags and user search', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValue({ users: [] });
+
+      await socialApi.editComment('c1', 'Updated body @bob #Dev');
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c1', {
+        method: 'PATCH',
+        body: JSON.stringify({ body: 'Updated body @bob #Dev' }),
+      });
+
+      await socialApi.pinComment('p1', 'c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/comments/c1/pin', {
+        method: 'POST',
+      });
+
+      await socialApi.unpinComment('p1', 'c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/comments/c1/pin', {
+        method: 'DELETE',
+      });
+
+      await socialApi.getHashtagPosts('#Nebron', { limit: 15 });
+      expect(spy).toHaveBeenCalledWith('/api/core/hashtags/nebron/posts?limit=15');
+
+      await socialApi.getTrendingHashtags(10);
+      expect(spy).toHaveBeenCalledWith('/api/core/hashtags/trending?limit=10');
+
+      const users = await socialApi.searchUsers('ali', 6);
+      expect(spy).toHaveBeenCalledWith('/api/core/users/search?q=ali&limit=6');
+      expect(users).toEqual([]);
+    });
   });
 });

@@ -6,6 +6,7 @@ import { reelsApi } from '@/lib/reels-api';
 import {
   adjustTargetCommentCount,
   applyCommentLikeEvent,
+  applyCommentUpdatedEvent,
 } from '@/lib/comment-cache';
 import { toast } from '@/components/ui/use-toast';
 import type { Comment } from '@/lib/types';
@@ -281,6 +282,95 @@ export function useDeleteComment(
         variant: 'destructive',
         title: 'Delete failed',
         description: error.message || 'Could not delete comment',
+      });
+    },
+  });
+}
+
+export function useEditComment(
+  targetId: string,
+  targetType: CommentTargetType = 'post'
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
+      socialApi.editComment(commentId, body),
+    onSuccess: (updated) => {
+      const listPrefix = commentsQueryPrefix(targetId, targetType);
+      applyCommentUpdatedEvent(queryClient, {
+        commentId: updated.id,
+        postId: targetId,
+        targetType,
+        body: updated.body,
+        editedAt: updated.editedAt ?? new Date().toISOString(),
+        mentions: updated.mentions,
+        hashtags: updated.hashtags,
+      });
+      queryClient.invalidateQueries({ queryKey: listPrefix });
+      queryClient.invalidateQueries({ queryKey: ['comment-replies'] });
+
+      if (targetType === 'post') {
+        queryClient.invalidateQueries({ queryKey: ['post', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+        queryClient.invalidateQueries({ queryKey: ['feed'] });
+        toast({
+          title: 'Comment updated',
+          description: 'Your changes have been saved.',
+        });
+      }
+    },
+    onError: (error: { message?: string }) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error.message || 'Could not update comment',
+      });
+    },
+  });
+}
+
+export function usePinComment(postId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId: string) => socialApi.pinComment(postId, commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      toast({
+        title: 'Comment pinned',
+        description: 'This comment is now pinned to the top.',
+      });
+    },
+    onError: (error: { message?: string }) => {
+      toast({
+        variant: 'destructive',
+        title: 'Could not pin comment',
+        description: error.message || 'Failed to pin comment',
+      });
+    },
+  });
+}
+
+export function useUnpinComment(postId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId: string) => socialApi.unpinComment(postId, commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      toast({
+        title: 'Comment unpinned',
+        description: 'Comment unpinned from top.',
+      });
+    },
+    onError: (error: { message?: string }) => {
+      toast({
+        variant: 'destructive',
+        title: 'Could not unpin comment',
+        description: error.message || 'Failed to unpin comment',
       });
     },
   });

@@ -8,6 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useProfile } from '@/hooks/use-profile';
 import { useCreateComment } from '@/hooks/useComments';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
+import {
+  TokenAutocompleteDropdown,
+  useTokenComposerInput,
+} from './token-autocomplete';
 import { Loader2, Send } from 'lucide-react';
 
 interface CommentComposerProps {
@@ -25,6 +29,7 @@ export function CommentComposer({
 }: CommentComposerProps) {
   const { data: profile } = useProfile();
   const [body, setBody] = useState('');
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const createCommentMutation = useCreateComment(postId);
 
   const maxChars = 300;
@@ -32,8 +37,7 @@ export function CommentComposer({
   const isOverLimit = remainingChars < 0;
   const isEmpty = body.trim().length === 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitComment = React.useCallback(() => {
     if (isEmpty || isOverLimit || createCommentMutation.isPending) return;
 
     createCommentMutation.mutate(body.trim(), {
@@ -42,7 +46,19 @@ export function CommentComposer({
         if (onSuccess) onSuccess();
       },
     });
+  }, [body, createCommentMutation, isEmpty, isOverLimit, onSuccess]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    submitComment();
   };
+
+  const autocomplete = useTokenComposerInput({
+    value: body,
+    setValue: setBody,
+    inputRef: textareaRef,
+    onSubmit: submitComment,
+  });
 
   const authorInitials = (profile?.name || profile?.username || 'U')
     .slice(0, 2)
@@ -60,18 +76,24 @@ export function CommentComposer({
 
       <div className="flex-1 space-y-1.5">
         <div className="relative border rounded-lg bg-background/50 focus-within:ring-1 focus-within:ring-ring focus-within:border-ring">
+          <TokenAutocompleteDropdown
+            activeToken={autocomplete.activeToken}
+            options={autocomplete.options}
+            isLoading={autocomplete.isLoading}
+            highlightedIndex={autocomplete.highlightedIndex}
+            onSelect={autocomplete.handleSelectOption}
+          />
           <Textarea
+            ref={textareaRef}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={autocomplete.handleInputChange}
+            onClick={autocomplete.handleCursorEvent}
+            onKeyUp={autocomplete.handleCursorEvent}
+            onBlur={autocomplete.clearAutocomplete}
             placeholder={placeholder}
             rows={2}
             className="resize-none border-none focus-visible:ring-0 p-2.5 text-sm shadow-none bg-transparent placeholder:text-muted-foreground w-full"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
+            onKeyDown={autocomplete.handleKeyDown}
           />
 
           <div className="flex items-center justify-between px-2.5 pb-2 pt-1 border-t border-border/40">

@@ -89,6 +89,11 @@ export interface Comment {
   likeCount?: number;
   replyCount?: number;
   likedByViewer?: boolean;
+  pinned?: boolean;
+  pinnedAt?: string | null;
+  editedAt?: string | null;
+  mentions?: string[];
+  hashtags?: string[];
   deleted?: boolean;
   createdAt: string;
   author: CommentAuthor;
@@ -101,6 +106,8 @@ export interface Post {
   body: string;
   imageKey?: string | null;
   imageUrl?: string | null;
+  mentions?: string[];
+  hashtags?: string[];
   likeCount: number;
   commentCount: number;
   likedByViewer: boolean;
@@ -108,6 +115,18 @@ export interface Post {
   createdAt: string;
   updatedAt?: string | null;
   author: PostAuthor;
+}
+
+export interface TrendingHashtag {
+  tag: string;
+  postCount: number;
+}
+
+export interface HashtagPostsResponse {
+  tag: string;
+  postCount: number;
+  data: Post[];
+  hasMore: boolean;
 }
 
 export interface PostImageUploadUrlResponse {

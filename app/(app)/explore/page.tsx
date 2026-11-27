@@ -11,11 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSuggestions } from '@/hooks/useFeed';
-import { usePopularPosts } from '@/hooks/usePosts';
+import { usePopularPosts, useTrendingHashtags } from '@/hooks/usePosts';
 import { apiFetch } from '@/lib/api';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { UserFollowItem } from '@/lib/types';
-import { Compass, Flame, Search, Sparkles, UserX, Users } from 'lucide-react';
+import { Compass, Flame, Hash, Search, Sparkles, UserX, Users } from 'lucide-react';
 
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +24,7 @@ export default function ExplorePage() {
   const [isSearching, setIsSearching] = useState(false);
 
   const { data: suggestions, isLoading: isSuggestionsLoading } = useSuggestions(6);
+  const { data: trendingHashtags } = useTrendingHashtags(10);
   const { data: popularPosts, isLoading: isPopularLoading } = usePopularPosts(20);
 
   // Debounce search query
@@ -225,6 +226,28 @@ export default function ExplorePage() {
                 </div>
               ) : null}
             </div>
+
+            {/* Trending Hashtags */}
+            {trendingHashtags && trendingHashtags.length > 0 && (
+              <div className="space-y-3" data-testid="explore-trending-hashtags">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground uppercase tracking-wider">
+                  <Hash className="w-4 h-4 text-primary" />
+                  <span>Trending Hashtags</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {trendingHashtags.map((item) => (
+                    <Link
+                      key={item.tag}
+                      href={`/hashtag/${encodeURIComponent(item.tag)}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-card hover:border-primary/50 hover:bg-accent/50 transition-colors text-xs font-medium"
+                    >
+                      <span className="text-primary">#{item.tag}</span>
+                      <span className="text-[11px] text-muted-foreground">{item.postCount}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Popular Posts */}
             <div className="space-y-4">

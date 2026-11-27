@@ -10,6 +10,10 @@ import { useCreatePost } from '@/hooks/usePosts';
 import { socialApi } from '@/lib/social-api';
 import { cn, normalizeStorageUrl } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
+import {
+  TokenAutocompleteDropdown,
+  useTokenComposerInput,
+} from './token-autocomplete';
 import { Image as ImageIcon, Loader2, Send, X } from 'lucide-react';
 
 interface PostComposerProps {
@@ -35,6 +39,7 @@ export function PostComposer({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const createPostMutation = useCreatePost();
 
   const maxChars = 500;
@@ -128,6 +133,12 @@ export function PostComposer({
     );
   };
 
+  const autocomplete = useTokenComposerInput({
+    value: body,
+    setValue: setBody,
+    inputRef: textareaRef,
+  });
+
   const authorInitials = (profile?.name || profile?.username || 'U')
     .slice(0, 2)
     .toUpperCase();
@@ -144,10 +155,22 @@ export function PostComposer({
             <AvatarFallback>{authorInitials}</AvatarFallback>
           </Avatar>
 
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-3 relative">
+            <TokenAutocompleteDropdown
+              activeToken={autocomplete.activeToken}
+              options={autocomplete.options}
+              isLoading={autocomplete.isLoading}
+              highlightedIndex={autocomplete.highlightedIndex}
+              onSelect={autocomplete.handleSelectOption}
+            />
             <Textarea
+              ref={textareaRef}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={autocomplete.handleInputChange}
+              onClick={autocomplete.handleCursorEvent}
+              onKeyUp={autocomplete.handleCursorEvent}
+              onBlur={autocomplete.clearAutocomplete}
+              onKeyDown={autocomplete.handleKeyDown}
               placeholder={placeholder}
               rows={3}
               className="resize-none border-none focus-visible:ring-0 p-0 text-base shadow-none bg-transparent placeholder:text-muted-foreground"

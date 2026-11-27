@@ -4,6 +4,7 @@ import {
   applyCommentDeletedEvent,
   applyCommentLikeEvent,
   applyCommentRepliedEvent,
+  applyCommentUpdatedEvent,
 } from './comment-cache';
 import type { Comment, Post } from './types';
 
@@ -133,5 +134,53 @@ describe('comment-cache WS helpers (V4-1)', () => {
     cached = qc.getQueryData<Comment[]>(['comments', 'p1', 'top'])!;
     expect(cached[0].topReplies?.length).toBe(0);
     expect(cached[0].replyCount).toBe(0);
+  });
+
+  it('updates body, editedAt, mentions, and hashtags via core.comment.updated event', () => {
+    const qc = new QueryClient();
+    const reply = makeComment({ id: 'r1', parentCommentId: 'c1', body: 'Old reply' });
+    const root = makeComment({ id: 'c1', body: 'Old root', topReplies: [reply] });
+
+    qc.setQueryData<Comment[]>(['comments', 'p1', 'top'], [root]);
+    qc.setQueryData<Comment[]>(['comment-replies', 'c1'], [reply]);
+    qc.setQueryData<Post>(['post', 'p1'], {
+      id: 'p1',
+      body: 'Post body',
+      likeCount: 0,
+      commentCount: 2,
+      likedByViewer: false,
+      createdAt: '2026-11-27T09:00:00.000Z',
+      author: { userId: 'u1', username: 'alice', name: 'Alice', avatarUrl: null },
+      comments: [root],
+    });
+
+    applyCommentUpdatedEvent(qc, {
+      commentId: 'c1',
+      postId: 'p1',
+      body: 'Edited root @bob #news',
+      editedAt: '2026-11-27T11:00:00.000Z',
+      mentions: ['u2'],
+      hashtags: ['news'],
+    });
+
+    applyCommentUpdatedEvent(qc, {
+      commentId: 'r1',
+      postId: 'p1',
+      body: 'Edited reply',
+      editedAt: '2026-11-27T11:01:00.000Z',
+    });
+
+    const cachedList = qc.getQueryData<Comment[]>(['comments', 'p1', 'top'])!;
+    expect(cachedList[0].body).toBe('Edited root @bob #news');
+    expect(cachedList[0].editedAt).toBe('2026-11-27T11:00:00.000Z');
+    expect(cachedList[0].mentions).toEqual(['u2']);
+    expect(cachedList[0].hashtags).toEqual(['news']);
+    expect(cachedList[0].topReplies?.[0].body).toBe('Edited reply');
+
+    const cachedReplies = qc.getQueryData<Comment[]>(['comment-replies', 'c1'])!;
+    expect(cachedReplies[0].body).toBe('Edited reply');
+
+    const cachedPost = qc.getQueryData<Post>(['post', 'p1'])!;
+    expect(cachedPost.comments?.[0].body).toBe('Edited root @bob #news');
   });
 });
