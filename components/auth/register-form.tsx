@@ -6,6 +6,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
+import { AuthErrorAlert } from '@/components/auth/auth-error-alert';
+import { EmailTypoHint } from '@/components/auth/email-typo-hint';
 import {
   Card,
   CardContent,
@@ -23,6 +26,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
+import { getAuthFormErrorMessage } from '@/lib/auth-errors';
 import { registerSchema, type RegisterFormData } from '@/lib/schemas';
 
 export function RegisterForm() {
@@ -37,7 +41,10 @@ export function RegisterForm() {
     },
   });
 
+  const emailValue = form.watch('email');
+
   const onSubmit = async (values: RegisterFormData) => {
+    form.clearErrors('root');
     try {
       await register(values);
     } catch (err: unknown) {
@@ -52,6 +59,10 @@ export function RegisterForm() {
       ) {
         form.setError('email', {
           message: 'An account with this email already exists',
+        });
+      } else {
+        form.setError('root', {
+          message: getAuthFormErrorMessage(err, 'register'),
         });
       }
     }
@@ -83,8 +94,19 @@ export function RegisterForm() {
                       autoComplete="email"
                       disabled={isRegistering}
                       {...field}
+                      onChange={(e) => {
+                        form.clearErrors('root');
+                        field.onChange(e);
+                      }}
                     />
                   </FormControl>
+                  <EmailTypoHint
+                    email={emailValue}
+                    onAccept={(corrected) => {
+                      form.setValue('email', corrected, { shouldValidate: true });
+                      form.clearErrors('root');
+                    }}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -97,12 +119,15 @@ export function RegisterForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       placeholder="At least 12 characters (letters & numbers)"
                       autoComplete="new-password"
                       disabled={isRegistering}
                       {...field}
+                      onChange={(e) => {
+                        form.clearErrors('root');
+                        field.onChange(e);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -117,18 +142,23 @@ export function RegisterForm() {
                 <FormItem>
                   <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       placeholder="Re-enter password"
                       autoComplete="new-password"
                       disabled={isRegistering}
                       {...field}
+                      onChange={(e) => {
+                        form.clearErrors('root');
+                        field.onChange(e);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <AuthErrorAlert message={form.formState.errors.root?.message} />
 
             <Button
               type="submit"

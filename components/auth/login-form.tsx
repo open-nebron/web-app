@@ -6,6 +6,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
+import { AuthErrorAlert } from '@/components/auth/auth-error-alert';
+import { EmailTypoHint } from '@/components/auth/email-typo-hint';
 import {
   Card,
   CardContent,
@@ -23,6 +26,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
+import { getAuthFormErrorMessage } from '@/lib/auth-errors';
 import { loginSchema, type LoginFormData } from '@/lib/schemas';
 
 export function LoginForm() {
@@ -36,16 +40,16 @@ export function LoginForm() {
     },
   });
 
+  const emailValue = form.watch('email');
+
   const onSubmit = async (values: LoginFormData) => {
+    form.clearErrors('root');
     try {
       await login(values);
     } catch (err: unknown) {
-      const error = err as { status?: number; data?: { error?: { code?: string; message?: string } } };
-      if (error?.status === 401) {
-        form.setError('password', {
-          message: 'Invalid email or password',
-        });
-      }
+      form.setError('root', {
+        message: getAuthFormErrorMessage(err, 'login'),
+      });
     }
   };
 
@@ -75,8 +79,19 @@ export function LoginForm() {
                       autoComplete="email"
                       disabled={isLoggingIn}
                       {...field}
+                      onChange={(e) => {
+                        form.clearErrors('root');
+                        field.onChange(e);
+                      }}
                     />
                   </FormControl>
+                  <EmailTypoHint
+                    email={emailValue}
+                    onAccept={(corrected) => {
+                      form.setValue('email', corrected, { shouldValidate: true });
+                      form.clearErrors('root');
+                    }}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -89,18 +104,23 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       placeholder="••••••••••••"
                       autoComplete="current-password"
                       disabled={isLoggingIn}
                       {...field}
+                      onChange={(e) => {
+                        form.clearErrors('root');
+                        field.onChange(e);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <AuthErrorAlert message={form.formState.errors.root?.message} />
 
             <Button
               type="submit"
