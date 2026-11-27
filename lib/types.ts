@@ -90,9 +90,12 @@ export interface Post {
 export interface PostImageUploadUrlResponse {
   uploadUrl: string;
   objectKey: string;
-  method: string;
-  headers: Record<string, string>;
-  expiresInSeconds: number;
+  fields?: Record<string, string>;
+  expiresAt?: string;
+  maxBytes?: number;
+  method?: string;
+  headers?: Record<string, string>;
+  expiresInSeconds?: number;
 }
 
 export interface PostImageConfirmResponse {

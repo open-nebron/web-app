@@ -190,6 +190,48 @@ describe('Social API', () => {
       expect(res).toEqual(mockConfirm);
     });
 
+    it('uploads post image via multipart POST FormData when slot returns presigned fields', async () => {
+      const mockSlot = {
+        uploadUrl: 'https://example.trycloudflare.com/nebron-media',
+        objectKey: 'posts/u1/abc.png',
+        fields: {
+          key: 'posts/u1/abc.png',
+          'Content-Type': 'image/png',
+          Policy: 'abc',
+          'X-Amz-Signature': 'sig',
+        },
+        expiresAt: '2026-11-27T12:00:00Z',
+        maxBytes: 10485760,
+      };
+      const mockConfirm = { verified: true, objectKey: 'posts/u1/abc.png', url: 'https://example.trycloudflare.com/nebron-media/posts/u1/abc.png' };
+      const apiSpy = vi
+        .spyOn(apiModule, 'apiFetch')
+        .mockResolvedValueOnce(mockSlot)
+        .mockResolvedValueOnce(mockConfirm);
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, status: 204 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const file = new File([new Uint8Array([137, 80, 78, 71])], 'test.png', { type: 'image/png' });
+      const res = await socialApi.uploadPostImageFile(file);
+
+      expect(apiSpy).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://example.trycloudflare.com/nebron-media');
+      expect(init.method).toBe('POST');
+      expect(init.body).toBeInstanceOf(FormData);
+      expect((init.body as FormData).get('key')).toBe('posts/u1/abc.png');
+      expect((init.body as FormData).get('Policy')).toBe('abc');
+      expect((init.body as FormData).get('file')).toBeInstanceOf(File);
+      expect(res).toEqual({
+        objectKey: 'posts/u1/abc.png',
+        url: 'https://example.trycloudflare.com/nebron-media/posts/u1/abc.png',
+      });
+
+      vi.unstubAllGlobals();
+    });
+
     it('deletes post image via DELETE /posts/image/*', async () => {
       const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(undefined);
       await socialApi.deletePostImage('posts/u1/abc.png');

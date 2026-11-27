@@ -91,19 +91,38 @@ export const socialApi = {
   ): Promise<{ objectKey: string; url: string }> {
     const slot = await this.getPostImageUploadUrl(file.type, file.size);
     const uploadUrl = normalizeStorageUrl(slot.uploadUrl);
+    const isPresignedPost = Boolean(slot.fields);
+
+    let payload: FormData | File = file;
+    let method = slot.method || 'PUT';
+    const headers: Record<string, string> = {};
+
+    if (isPresignedPost && slot.fields) {
+      method = 'POST';
+      const formData = new FormData();
+      Object.entries(slot.fields).forEach(([k, v]) => {
+        formData.append(k, v);
+      });
+      formData.append('file', file);
+      payload = formData;
+    } else {
+      headers['Content-Type'] = file.type;
+      if (slot.headers) {
+        Object.entries(slot.headers).forEach(([k, v]) => {
+          if (k.toLowerCase() !== 'content-type') {
+            headers[k] = v;
+          }
+        });
+      }
+    }
 
     if (onProgress && typeof XMLHttpRequest !== 'undefined') {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open(slot.method || 'PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        if (slot.headers) {
-          Object.entries(slot.headers).forEach(([k, v]) => {
-            if (k.toLowerCase() !== 'content-type') {
-              xhr.setRequestHeader(k, v);
-            }
-          });
-        }
+        xhr.open(method, uploadUrl);
+        Object.entries(headers).forEach(([k, v]) => {
+          xhr.setRequestHeader(k, v);
+        });
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded / event.total) * 100);
@@ -118,16 +137,13 @@ export const socialApi = {
           }
         };
         xhr.onerror = () => reject(new Error('Storage upload network error'));
-        xhr.send(file);
+        xhr.send(payload);
       });
     } else {
       const res = await fetch(uploadUrl, {
-        method: slot.method || 'PUT',
-        headers: {
-          'Content-Type': file.type,
-          ...(slot.headers || {}),
-        },
-        body: file,
+        method,
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
+        body: payload,
       });
       if (!res.ok) {
         throw new Error(`Storage upload failed with status ${res.status}`);
