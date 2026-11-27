@@ -156,19 +156,53 @@ export const socialApi = {
 
   async getComments(
     postId: string,
+    params: { limit?: number; before?: string; sort?: 'top' | 'new' } = {}
+  ): Promise<Comment[]> {
+    const sp = new URLSearchParams();
+    if (params.limit) sp.set('limit', String(params.limit));
+    if (params.before) sp.set('before', params.before);
+    if (params.sort) sp.set('sort', params.sort);
+    const query = sp.toString() ? `?${sp.toString()}` : '';
+    return apiFetch<Comment[]>(`/api/core/posts/${postId}/comments${query}`);
+  },
+
+  async createComment(
+    postId: string,
+    body: string,
+    parentCommentId?: string | null
+  ): Promise<Comment> {
+    const payload =
+      parentCommentId !== undefined && parentCommentId !== null
+        ? { body, parentCommentId }
+        : { body };
+    return apiFetch<Comment>(`/api/core/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getCommentReplies(
+    commentId: string,
     params: { limit?: number; before?: string } = {}
   ): Promise<Comment[]> {
     const sp = new URLSearchParams();
     if (params.limit) sp.set('limit', String(params.limit));
     if (params.before) sp.set('before', params.before);
     const query = sp.toString() ? `?${sp.toString()}` : '';
-    return apiFetch<Comment[]>(`/api/core/posts/${postId}/comments${query}`);
+    return apiFetch<Comment[]>(
+      `/api/core/comments/${encodeURIComponent(commentId)}/replies${query}`
+    );
   },
 
-  async createComment(postId: string, body: string): Promise<Comment> {
-    return apiFetch<Comment>(`/api/core/posts/${postId}/comments`, {
+  async likeComment(commentId: string): Promise<void> {
+    return apiFetch<void>(`/api/core/comments/${encodeURIComponent(commentId)}/like`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+    });
+  },
+
+  async unlikeComment(commentId: string): Promise<void> {
+    return apiFetch<void>(`/api/core/comments/${encodeURIComponent(commentId)}/like`, {
+      method: 'DELETE',
     });
   },
 

@@ -65,12 +65,35 @@ export interface CommentAuthor {
   avatarUrl: string | null;
 }
 
-export interface Comment {
+export interface CommentReplyToUser {
+  userId: string;
+  username: string;
+}
+
+export interface CommentParentPreview {
   id: string;
-  postId: string;
   body: string;
   createdAt: string;
   author: CommentAuthor;
+}
+
+export interface Comment {
+  id: string;
+  postId?: string;
+  reelId?: string;
+  targetType?: 'post' | 'reel';
+  parentCommentId?: string | null;
+  replyToUserId?: string | null;
+  replyToUser?: CommentReplyToUser | null;
+  body: string;
+  likeCount?: number;
+  replyCount?: number;
+  likedByViewer?: boolean;
+  deleted?: boolean;
+  createdAt: string;
+  author: CommentAuthor;
+  topReplies?: Comment[];
+  parent?: CommentParentPreview;
 }
 
 export interface Post {
@@ -266,7 +289,14 @@ export interface ReelCommentItem {
   id: string;
   reelId: string;
   targetType: 'reel';
+  parentCommentId?: string | null;
+  replyToUserId?: string | null;
+  replyToUser?: CommentReplyToUser | null;
   body: string;
+  likeCount?: number;
+  replyCount?: number;
+  likedByViewer?: boolean;
+  deleted?: boolean;
   createdAt: string;
   author: {
     userId: string;
@@ -274,6 +304,8 @@ export interface ReelCommentItem {
     name: string | null;
     avatarUrl: string | null;
   };
+  topReplies?: ReelCommentItem[];
+  parent?: CommentParentPreview;
 }
 
 export interface ReelLikerItem {

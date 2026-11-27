@@ -6,6 +6,14 @@ import { WsClient, type WsStatus } from '@/lib/ws-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useChatStore } from '@/lib/chat-store';
 import type { WSTypingPayload, WSPresencePayload, ChatMessage, ReactionSummary } from '@/lib/chat-types';
+import {
+  applyCommentDeletedEvent,
+  applyCommentLikeEvent,
+  applyCommentRepliedEvent,
+  type CommentDeletedWsPayload,
+  type CommentLikedWsPayload,
+  type CommentRepliedWsPayload,
+} from '@/lib/comment-cache';
 
 interface WsSendResult {
   payload?: {
@@ -296,24 +304,59 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
     });
 
     const unsubCommentCreated = client.on('core.comment.created', (data: unknown) => {
-      const raw = data as { payload?: { postId?: string } };
-      const payload = raw?.payload ?? (data as { postId?: string });
+      const raw = data as { payload?: { postId?: string; reelId?: string; targetType?: string } };
+      const payload = raw?.payload ?? (data as { postId?: string; reelId?: string; targetType?: string });
+      const targetId = payload?.reelId || payload?.postId;
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      if (payload?.postId) {
-        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
-        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      if (targetId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['post', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reel-comments', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reel', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reels-feed'] });
       }
     });
 
     const unsubCommentDeleted = client.on('core.comment.deleted', (data: unknown) => {
-      const raw = data as { payload?: { postId?: string } };
-      const payload = raw?.payload ?? (data as { postId?: string });
+      const raw = data as { payload?: CommentDeletedWsPayload };
+      const payload = raw?.payload ?? (data as CommentDeletedWsPayload);
+      const targetId = payload?.reelId || payload?.postId;
+      if (payload?.commentId) {
+        applyCommentDeletedEvent(queryClient, payload);
+      }
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      if (payload?.postId) {
-        queryClient.invalidateQueries({ queryKey: ['comments', payload.postId] });
-        queryClient.invalidateQueries({ queryKey: ['post', payload.postId] });
+      if (targetId) {
+        queryClient.invalidateQueries({ queryKey: ['comments', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['post', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reel-comments', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reel', targetId] });
+        queryClient.invalidateQueries({ queryKey: ['reels-feed'] });
+      }
+    });
+
+    const unsubCommentReplied = client.on('core.comment.replied', (data: unknown) => {
+      const raw = data as { payload?: CommentRepliedWsPayload };
+      const payload = raw?.payload ?? (data as CommentRepliedWsPayload);
+      if (payload?.parentCommentId) {
+        applyCommentRepliedEvent(queryClient, payload);
+      }
+    });
+
+    const unsubCommentLiked = client.on('core.comment.liked', (data: unknown) => {
+      const raw = data as { payload?: CommentLikedWsPayload };
+      const payload = raw?.payload ?? (data as CommentLikedWsPayload);
+      if (payload?.commentId) {
+        applyCommentLikeEvent(queryClient, { ...payload, delta: 1 });
+      }
+    });
+
+    const unsubCommentUnliked = client.on('core.comment.unliked', (data: unknown) => {
+      const raw = data as { payload?: CommentLikedWsPayload };
+      const payload = raw?.payload ?? (data as CommentLikedWsPayload);
+      if (payload?.commentId) {
+        applyCommentLikeEvent(queryClient, { ...payload, delta: -1 });
       }
     });
 
@@ -368,6 +411,9 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubPostUnliked();
       unsubCommentCreated();
       unsubCommentDeleted();
+      unsubCommentReplied();
+      unsubCommentLiked();
+      unsubCommentUnliked();
       unsubPostEdited();
       unsubStoryCreated();
       unsubStoryDeleted();

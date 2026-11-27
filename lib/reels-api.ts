@@ -312,21 +312,31 @@ export const reelsApi = {
   async getComments(
     reelId: string,
     limit: number = 30,
-    before?: string
+    before?: string,
+    sort?: 'top' | 'new'
   ): Promise<ReelCommentItem[]> {
     const params = new URLSearchParams({ limit: String(limit) });
     if (before) params.set('before', before);
+    if (sort) params.set('sort', sort);
     return apiFetch<ReelCommentItem[]>(
       `/api/core/reels/${encodeURIComponent(reelId)}/comments?${params.toString()}`
     );
   },
 
-  async createComment(reelId: string, body: string): Promise<ReelCommentItem> {
+  async createComment(
+    reelId: string,
+    body: string,
+    parentCommentId?: string | null
+  ): Promise<ReelCommentItem> {
+    const payload =
+      parentCommentId !== undefined && parentCommentId !== null
+        ? { body, parentCommentId }
+        : { body };
     return apiFetch<ReelCommentItem>(
       `/api/core/reels/${encodeURIComponent(reelId)}/comments`,
       {
         method: 'POST',
-        body: JSON.stringify({ body }),
+        body: JSON.stringify(payload),
       }
     );
   },

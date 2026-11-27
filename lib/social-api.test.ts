@@ -286,6 +286,28 @@ describe('Social API', () => {
       });
     });
 
+    it('creates threaded reply, lists sorted comments, loads replies, and likes/unlikes comments', async () => {
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValue([]);
+
+      await socialApi.getComments('p1', { limit: 20, sort: 'top' });
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/comments?limit=20&sort=top');
+
+      await socialApi.createComment('p1', 'Nested reply', 'c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/posts/p1/comments', {
+        method: 'POST',
+        body: JSON.stringify({ body: 'Nested reply', parentCommentId: 'c1' }),
+      });
+
+      await socialApi.getCommentReplies('c1', { limit: 20 });
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c1/replies?limit=20');
+
+      await socialApi.likeComment('c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c1/like', { method: 'POST' });
+
+      await socialApi.unlikeComment('c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c1/like', { method: 'DELETE' });
+    });
+
     it('edits post via PATCH /posts/:id', async () => {
       const mockPost = { id: 'p1', body: 'New text' };
       const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce(mockPost);
