@@ -3,7 +3,7 @@ import { analyticsApi } from './analytics-api';
 import { socialApi } from './social-api';
 import * as apiModule from './api';
 import { makeImpressionSessionKey, shouldSendImpression } from './beacons';
-import { sortRowsByKey } from './analytics-utils';
+import { buildStackedFollowSourceSeries, sortRowsByKey } from './analytics-utils';
 
 describe('V4-5 Analytics Frontend Client, Beacons & Helpers', () => {
   beforeEach(() => {
@@ -132,5 +132,55 @@ describe('V4-5 Analytics Frontend Client, Beacons & Helpers', () => {
     const res = await analyticsApi.getContentDepth('post', 'post-42');
     expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/post-42/depth');
     expect(res.discussionScore).toBe(12);
+  });
+
+  it('calls Stage V4.5-2 insights endpoints and builds stacked follow source series', async () => {
+    const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValue({} as any);
+
+    await analyticsApi.getContentCurve('reel', 'r1');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/reel/r1/curve');
+
+    await analyticsApi.getContentTraffic('post', 'p1');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/p1/traffic');
+
+    await analyticsApi.getCohortComparison('post', 'p1', '7d_ago');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/p1/compare?against=7d_ago');
+
+    await analyticsApi.getContentSpeed('post', 'p1');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/p1/speed');
+
+    await analyticsApi.getContentDecay('post', 'p1');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/p1/decay');
+
+    await analyticsApi.getHashtagsAnalytics('7d', 15);
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/hashtags?period=7d&limit=15');
+
+    await analyticsApi.getBestTime('reel', '30d');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/best-time?period=30d&contentType=reel');
+
+    await analyticsApi.getAudienceActivity('30d');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/audience/activity?period=30d');
+
+    await analyticsApi.getAudienceGrowth('90d');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/audience/growth?period=90d');
+
+    await analyticsApi.getAudienceSources('30d');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/audience/sources?period=30d');
+
+    await analyticsApi.getCrossContentCompare('post', ['p1', 'p2']);
+    expect(spy).toHaveBeenCalledWith(
+      '/api/core/analytics/me/compare?contentType=post&contentIds=p1%2Cp2'
+    );
+
+    const stacked = buildStackedFollowSourceSeries(
+      ['2026-11-27', '2026-11-28'],
+      [
+        { date: '2026-11-27', source: 'reel', count: 3 },
+        { date: '2026-11-28', source: 'profile', count: 2 },
+      ]
+    );
+    expect(stacked).toHaveLength(2);
+    expect(stacked[0]).toMatchObject({ date: '2026-11-27', reel: 3, profile: 0 });
+    expect(stacked[1]).toMatchObject({ date: '2026-11-28', profile: 2, reel: 0 });
   });
 });

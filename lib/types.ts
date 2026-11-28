@@ -366,7 +366,13 @@ export interface ReelLikerItem {
 
 export type AnalyticsPeriod = '7d' | '30d' | '90d';
 export type AnalyticsContentType = 'post' | 'reel' | 'story';
-export type AnalyticsSource = 'feed' | 'profile' | 'explore' | 'shared' | 'hashtag';
+export type AnalyticsSource =
+  | 'feed'
+  | 'profile'
+  | 'explore'
+  | 'shared'
+  | 'hashtag'
+  | 'recommendations';
 export type FollowSourceType = 'profile' | 'feed' | 'reel' | 'search' | 'suggestion' | 'other';
 
 export interface OverviewTopContentItem {
@@ -609,5 +615,148 @@ export interface ContentEngagementDepthResponse {
   uniqueEngagedUsers: number;
   discussionScore: number;
   topCommenters: TopCommenterEntry[];
+}
+
+export type CompareAgainst = '7d_ago' | '30d_ago' | 'previous_post';
+
+export interface ContentCurveResponse {
+  contentType: AnalyticsContentType;
+  contentId: string;
+  totalViews?: number;
+  curve?: Array<{ percent: number; viewers: number }>;
+  avgWatchedPercent?: number;
+  avgWatchSeconds?: number;
+  completions?: number;
+  completionRate?: number;
+  tapsForward?: number;
+  tapsBack?: number;
+  exits?: number;
+  timeline?: Array<{ hoursAfter: number; engagements: number }>;
+}
+
+export interface TrafficSourceStat {
+  source: AnalyticsSource;
+  impressions: number;
+  engagements: number;
+  engagementRate: number;
+}
+
+export interface ContentTrafficResponse {
+  sources: TrafficSourceStat[];
+  totalImpressions: number;
+  topSource: AnalyticsSource | null;
+}
+
+export interface ComparisonMetricSnapshot {
+  contentId: string;
+  preview: string;
+  createdAt: string;
+  impressions: number;
+  reach: number;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  engagements: number;
+  engagementRate: number;
+}
+
+export interface CohortComparisonResponse {
+  against: CompareAgainst;
+  current: ComparisonMetricSnapshot;
+  comparison: ComparisonMetricSnapshot | null;
+  deltas: {
+    impressions: number;
+    engagements: number;
+    engagementRate: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    views: number;
+  } | null;
+  verdict: 'better' | 'similar' | 'worse';
+}
+
+export interface HashtagPerformanceItem {
+  tag: string;
+  posts: number;
+  impressions: number;
+  reach: number;
+  avgEngagementRate: number;
+  avgLikes: number;
+  avgComments: number;
+  verdict: 'high' | 'medium' | 'low';
+}
+
+export interface ContentSpeedResponse {
+  postedAt: string;
+  firstEngagementAt: string | null;
+  timeToFirstEngagement: number | null;
+  firstEngagementType: string | null;
+  speedRating: 'viral' | 'fast' | 'average' | 'slow' | 'no_engagement';
+  halfEngagementsAt: string | null;
+  halfLifeHours: number | null;
+}
+
+export interface ContentDecayBucket {
+  ageHours: '0-6' | '6-12' | '12-24' | '24-48' | '48-168';
+  engagements: number;
+  rateVsPeak: number;
+}
+
+export interface ContentDecayResponse {
+  buckets: ContentDecayBucket[];
+  peakBucket: ContentDecayBucket['ageHours'];
+  halfLifeHours: number;
+}
+
+export interface BestTimeHourEntry {
+  hour: number;
+  engagementRate: number;
+  sampleSize: number;
+  verdict: 'high' | 'medium' | 'low';
+}
+
+export interface BestTimeResponse {
+  hours: BestTimeHourEntry[];
+  top3Hours: number[];
+  recommendation: string;
+}
+
+export interface AudienceActivityResponse {
+  byHour: Array<{ hour: number; activeFollowers: number }>;
+  byDayOfWeek: Array<{
+    day: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+    activeFollowers: number;
+  }>;
+  peakWindow: { startHour: number; endHour: number; totalActive: number };
+}
+
+export interface AudienceGrowthResponse {
+  daily: Array<{ date: string; totalFollowers: number; gained: number; lost: number }>;
+  weekly: Array<{ weekStart: string; totalFollowers: number; gained: number; lost: number }>;
+  monthly: Array<{ monthStart: string; totalFollowers: number; gained: number; lost: number }>;
+  churnRate: number;
+  retentionRate: number;
+}
+
+export interface AudienceSourcesResponse {
+  sources: Array<{ source: FollowSourceType; newFollowers: number }>;
+  topSource: FollowSourceType | null;
+  trend: Array<{ date: string; source: FollowSourceType; count: number }>;
+}
+
+export interface CrossContentCompareResponse {
+  items: Array<{
+    contentId: string;
+    preview: string;
+    metrics: Omit<ComparisonMetricSnapshot, 'contentId' | 'preview' | 'createdAt'>;
+  }>;
+  winner: {
+    contentId: string;
+    why: 'highest_engagement_rate' | 'most_reach' | 'most_saves';
+  } | null;
 }
 

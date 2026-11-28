@@ -17,24 +17,43 @@ import {
   TrafficSourcesPieChart,
 } from '@/components/analytics/analytics-charts';
 import { EngagementDepthPanel } from '@/components/analytics/engagement-depth-panel';
+import {
+  ContentComparePanel,
+  ContentDecayPanel,
+  ContentRetentionPanel,
+  ContentSpeedPanel,
+  ContentTrafficPanel,
+} from '@/components/analytics/content-insight-tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsPeriod } from '@/lib/types';
 
+type ReelDetailTab = 'overview' | 'retention' | 'traffic' | 'compare' | 'speed' | 'decay' | 'depth';
+
+const VALID_REEL_TABS = new Set<ReelDetailTab>([
+  'overview',
+  'retention',
+  'traffic',
+  'compare',
+  'speed',
+  'decay',
+  'depth',
+]);
+
 export default function ReelAnalyticsDetailPage() {
   const params = useParams();
   const reelId = typeof params?.id === 'string' ? params.id : '';
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
-  const [activeTab, setActiveTab] = React.useState<'overview' | 'depth'>('overview');
+  const [activeTab, setActiveTab] = React.useState<ReelDetailTab>('overview');
 
   React.useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('tab') === 'depth'
-    ) {
-      setActiveTab('depth');
+    if (typeof window !== 'undefined') {
+      const tab = new URLSearchParams(window.location.search).get('tab') as ReelDetailTab | null;
+      if (tab && VALID_REEL_TABS.has(tab)) {
+        setActiveTab(tab);
+      }
     }
   }, []);
 
@@ -122,12 +141,27 @@ export default function ReelAnalyticsDetailPage() {
 
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as 'overview' | 'depth')}
+              onValueChange={(v) => setActiveTab(v as ReelDetailTab)}
               className="space-y-6"
             >
-              <TabsList data-testid="reel-analytics-tabs">
+              <TabsList data-testid="reel-analytics-tabs" className="flex-wrap h-auto gap-1">
                 <TabsTrigger value="overview" data-testid="reel-tab-overview">
                   Overview
+                </TabsTrigger>
+                <TabsTrigger value="retention" data-testid="reel-tab-retention">
+                  Retention
+                </TabsTrigger>
+                <TabsTrigger value="traffic" data-testid="reel-tab-traffic">
+                  Traffic
+                </TabsTrigger>
+                <TabsTrigger value="compare" data-testid="reel-tab-compare">
+                  Compare
+                </TabsTrigger>
+                <TabsTrigger value="speed" data-testid="reel-tab-speed">
+                  Speed
+                </TabsTrigger>
+                <TabsTrigger value="decay" data-testid="reel-tab-decay">
+                  Decay
                 </TabsTrigger>
                 <TabsTrigger value="depth" data-testid="reel-tab-depth">
                   Depth
@@ -199,6 +233,46 @@ export default function ReelAnalyticsDetailPage() {
                     testId="reel-detail-timeseries-chart"
                   />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="retention" className="mt-0">
+                <ContentRetentionPanel
+                  contentType="reel"
+                  contentId={reelId}
+                  enabled={activeTab === 'retention'}
+                />
+              </TabsContent>
+
+              <TabsContent value="traffic" className="mt-0">
+                <ContentTrafficPanel
+                  contentType="reel"
+                  contentId={reelId}
+                  enabled={activeTab === 'traffic'}
+                />
+              </TabsContent>
+
+              <TabsContent value="compare" className="mt-0">
+                <ContentComparePanel
+                  contentType="reel"
+                  contentId={reelId}
+                  enabled={activeTab === 'compare'}
+                />
+              </TabsContent>
+
+              <TabsContent value="speed" className="mt-0">
+                <ContentSpeedPanel
+                  contentType="reel"
+                  contentId={reelId}
+                  enabled={activeTab === 'speed'}
+                />
+              </TabsContent>
+
+              <TabsContent value="decay" className="mt-0">
+                <ContentDecayPanel
+                  contentType="reel"
+                  contentId={reelId}
+                  enabled={activeTab === 'decay'}
+                />
               </TabsContent>
 
               <TabsContent value="depth" className="mt-0">

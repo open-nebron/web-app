@@ -15,24 +15,43 @@ import {
   TrafficSourcesPieChart,
 } from '@/components/analytics/analytics-charts';
 import { EngagementDepthPanel } from '@/components/analytics/engagement-depth-panel';
+import {
+  ContentComparePanel,
+  ContentDecayPanel,
+  ContentRetentionPanel,
+  ContentSpeedPanel,
+  ContentTrafficPanel,
+} from '@/components/analytics/content-insight-tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsPeriod } from '@/lib/types';
 
+type PostDetailTab = 'overview' | 'retention' | 'traffic' | 'compare' | 'speed' | 'decay' | 'depth';
+
+const VALID_POST_TABS = new Set<PostDetailTab>([
+  'overview',
+  'retention',
+  'traffic',
+  'compare',
+  'speed',
+  'decay',
+  'depth',
+]);
+
 export default function PostAnalyticsDetailPage() {
   const params = useParams();
   const postId = typeof params?.id === 'string' ? params.id : '';
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
-  const [activeTab, setActiveTab] = React.useState<'overview' | 'depth'>('overview');
+  const [activeTab, setActiveTab] = React.useState<PostDetailTab>('overview');
 
   React.useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('tab') === 'depth'
-    ) {
-      setActiveTab('depth');
+    if (typeof window !== 'undefined') {
+      const tab = new URLSearchParams(window.location.search).get('tab') as PostDetailTab | null;
+      if (tab && VALID_POST_TABS.has(tab)) {
+        setActiveTab(tab);
+      }
     }
   }, []);
 
@@ -112,15 +131,30 @@ export default function PostAnalyticsDetailPage() {
               </Button>
             </div>
 
-            {/* Tabs: Overview & Depth */}
+            {/* Tabs: Overview, Retention, Traffic, Compare, Speed, Decay, Depth */}
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as 'overview' | 'depth')}
+              onValueChange={(v) => setActiveTab(v as PostDetailTab)}
               className="space-y-6"
             >
-              <TabsList data-testid="post-analytics-tabs">
+              <TabsList data-testid="post-analytics-tabs" className="flex-wrap h-auto gap-1">
                 <TabsTrigger value="overview" data-testid="post-tab-overview">
                   Overview
+                </TabsTrigger>
+                <TabsTrigger value="retention" data-testid="post-tab-retention">
+                  Retention
+                </TabsTrigger>
+                <TabsTrigger value="traffic" data-testid="post-tab-traffic">
+                  Traffic
+                </TabsTrigger>
+                <TabsTrigger value="compare" data-testid="post-tab-compare">
+                  Compare
+                </TabsTrigger>
+                <TabsTrigger value="speed" data-testid="post-tab-speed">
+                  Speed
+                </TabsTrigger>
+                <TabsTrigger value="decay" data-testid="post-tab-decay">
+                  Decay
                 </TabsTrigger>
                 <TabsTrigger value="depth" data-testid="post-tab-depth">
                   Depth
@@ -181,6 +215,46 @@ export default function PostAnalyticsDetailPage() {
                     </div>
                   </div>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="retention" className="mt-0">
+                <ContentRetentionPanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'retention'}
+                />
+              </TabsContent>
+
+              <TabsContent value="traffic" className="mt-0">
+                <ContentTrafficPanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'traffic'}
+                />
+              </TabsContent>
+
+              <TabsContent value="compare" className="mt-0">
+                <ContentComparePanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'compare'}
+                />
+              </TabsContent>
+
+              <TabsContent value="speed" className="mt-0">
+                <ContentSpeedPanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'speed'}
+                />
+              </TabsContent>
+
+              <TabsContent value="decay" className="mt-0">
+                <ContentDecayPanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'decay'}
+                />
               </TabsContent>
 
               <TabsContent value="depth" className="mt-0">

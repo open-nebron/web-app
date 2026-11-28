@@ -1,32 +1,43 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
+import type { BestTimeHourEntry } from '@/lib/types';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
-function intensityClass(value: number, max: number): string {
-  if (value <= 0 || max <= 0) return 'bg-muted/60 hover:bg-muted';
+function cellFillOpacity(value: number, max: number): number {
+  if (value <= 0 || max <= 0) return 0;
   const ratio = value / max;
-  if (ratio >= 0.75) return 'bg-primary text-primary-foreground';
-  if (ratio >= 0.5) return 'bg-primary/75';
-  if (ratio >= 0.25) return 'bg-primary/45';
-  return 'bg-primary/20';
+  if (ratio >= 0.75) return 0.95;
+  if (ratio >= 0.5) return 0.72;
+  if (ratio >= 0.25) return 0.45;
+  return 0.22;
 }
 
 /**
- * Displays a 7 days x 24 hours UTC activity heatmap for posting and audience insights.
+ * Interactive 7 days x 24 hours SVG `<rect>` heatmap supporting click-to-inspect
+ * hour/day detail for best-time-to-post and audience activity charts.
  */
 export function ActivityHeatmap({
   matrix,
   unitLabel = 'activity',
   emptyMessage = 'No hourly activity recorded yet for this period.',
+  hourDetails,
+  onSelectHour,
 }: {
   matrix?: number[][];
   unitLabel?: string;
   emptyMessage?: string;
+  hourDetails?: BestTimeHourEntry[];
+  onSelectHour?: (selection: { day: string; hour: number; count: number }) => void;
 }) {
+  const [selected, setSelected] = React.useState<{
+    dayIdx: number;
+    hour: number;
+    count: number;
+  } | null>(null);
+
   const safeMatrix = React.useMemo(() => {
     if (Array.isArray(matrix) && matrix.length === 7) {
       return matrix.map((row) =>
@@ -53,10 +64,21 @@ export function ActivityHeatmap({
     }
   }
 
+  const labelW = 36;
+  const cellW = 24;
+  const cellH = 20;
+  const gap = 3;
+  const headerH = 18;
+  const svgWidth = labelW + 24 * (cellW + gap);
+  const svgHeight = headerH + 7 * (cellH + gap) + 4;
+
+  const selectedDetail =
+    selected && hourDetails ? hourDetails.find((h) => h.hour === selected.hour) : undefined;
+
   return (
     <div className="space-y-3" data-testid="analytics-heatmap">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>All times in UTC</span>
+        <span>All times in UTC (click any cell for detail)</span>
         {totalVal > 0 ? (
           <span className="font-medium text-foreground">
             Peak: {DAY_NAMES[peakDay]} at {String(peakHour).padStart(2, '0')}:00 UTC ({maxVal}{' '}
@@ -68,48 +90,109 @@ export function ActivityHeatmap({
       </div>
 
       <div className="overflow-x-auto pb-1">
-        <div className="min-w-[600px] space-y-1">
-          <div className="grid grid-cols-[44px_repeat(24,minmax(0,1fr))] gap-1 text-[10px] text-muted-foreground">
-            <div />
-            {HOURS.map((h) => (
-              <div key={h} className="text-center font-mono">
-                {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
-              </div>
-            ))}
-          </div>
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          className="w-full min-w-[580px] h-auto select-none"
+          role="img"
+          aria-label="7 by 24 hourly activity heatmap"
+          data-testid="heatmap-svg"
+        >
+          {HOURS.map((h) =>
+            h % 3 === 0 ? (
+              <text
+                key={`hdr-${h}`}
+                x={labelW + h * (cellW + gap) + cellW / 2}
+                y={12}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[9px] font-mono"
+              >
+                {String(h).padStart(2, '0')}
+              </text>
+            ) : null
+          )}
 
-          {DAY_NAMES.map((dayLabel, dIdx) => (
-            <div
-              key={dayLabel}
-              className="grid grid-cols-[44px_repeat(24,minmax(0,1fr))] gap-1 items-center"
-            >
-              <span className="text-[11px] font-medium text-muted-foreground">{dayLabel}</span>
-              {HOURS.map((h) => {
-                const count = safeMatrix[dIdx][h] ?? 0;
-                return (
-                  <div
-                    key={h}
-                    title={`${dayLabel} ${String(h).padStart(2, '0')}:00 UTC — ${count} ${unitLabel}`}
-                    className={cn(
-                      'h-5 rounded-sm transition-colors border border-border/20',
-                      intensityClass(count, maxVal)
-                    )}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+          {DAY_NAMES.map((dayLabel, dIdx) => {
+            const y = headerH + dIdx * (cellH + gap);
+            return (
+              <g key={dayLabel}>
+                <text
+                  x={2}
+                  y={y + cellH / 2 + 3.5}
+                  className="fill-muted-foreground text-[10px] font-medium"
+                >
+                  {dayLabel}
+                </text>
+                {HOURS.map((h) => {
+                  const count = safeMatrix[dIdx][h] ?? 0;
+                  const x = labelW + h * (cellW + gap);
+                  const opacity = cellFillOpacity(count, maxVal);
+                  const isSelected = selected?.dayIdx === dIdx && selected?.hour === h;
+                  return (
+                    <rect
+                      key={`${dIdx}-${h}`}
+                      x={x}
+                      y={y}
+                      width={cellW}
+                      height={cellH}
+                      rx={3}
+                      data-testid={`heatmap-cell-${dIdx}-${h}`}
+                      onClick={() => {
+                        setSelected({ dayIdx: dIdx, hour: h, count });
+                        onSelectHour?.({ day: dayLabel, hour: h, count });
+                      }}
+                      className="cursor-pointer transition-opacity hover:opacity-80"
+                      style={{
+                        fill: opacity > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
+                        fillOpacity: opacity > 0 ? opacity : 0.6,
+                        stroke: isSelected ? 'hsl(var(--foreground))' : 'hsl(var(--border))',
+                        strokeWidth: isSelected ? 1.5 : 0.5,
+                      }}
+                    >
+                      <title>{`${dayLabel} ${String(h).padStart(2, '0')}:00 UTC - ${count} ${unitLabel}`}</title>
+                    </rect>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
       </div>
 
-      <div className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
-        <span>Less</span>
-        <span className="w-3 h-3 rounded-sm bg-muted/60 border border-border/30" />
-        <span className="w-3 h-3 rounded-sm bg-primary/20" />
-        <span className="w-3 h-3 rounded-sm bg-primary/45" />
-        <span className="w-3 h-3 rounded-sm bg-primary/75" />
-        <span className="w-3 h-3 rounded-sm bg-primary" />
-        <span>More</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        {selected ? (
+          <div
+            data-testid="heatmap-selected-detail"
+            className="rounded-md border bg-muted/40 px-2.5 py-1 text-foreground"
+          >
+            <span className="font-semibold">
+              {DAY_NAMES[selected.dayIdx]} {String(selected.hour).padStart(2, '0')}:00 UTC:
+            </span>{' '}
+            <span>
+              {selected.count} {unitLabel}
+            </span>
+            {selectedDetail && (
+              <span className="text-muted-foreground">
+                {' '}
+                · Avg ER {(selectedDetail.engagementRate * 100).toFixed(1)}% · Sample{' '}
+                {selectedDetail.sampleSize} ({selectedDetail.verdict})
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-[11px]">
+            Select any hour block to inspect engagement detail.
+          </span>
+        )}
+
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground ml-auto">
+          <span>Less</span>
+          <span className="w-3 h-3 rounded-sm bg-muted/60 border border-border/30" />
+          <span className="w-3 h-3 rounded-sm bg-primary/20" />
+          <span className="w-3 h-3 rounded-sm bg-primary/45" />
+          <span className="w-3 h-3 rounded-sm bg-primary/75" />
+          <span className="w-3 h-3 rounded-sm bg-primary" />
+          <span>More</span>
+        </div>
       </div>
     </div>
   );

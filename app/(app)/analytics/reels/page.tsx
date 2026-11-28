@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Film } from 'lucide-react';
+import { Film, Scale } from 'lucide-react';
 import { useReelAnalyticsList } from '@/hooks/useAnalytics';
 import { AnalyticsHeader, formatDuration } from '@/components/analytics/analytics-shell';
 import {
@@ -10,7 +10,9 @@ import {
   sortRowsByKey,
   type SortDirection,
 } from '@/components/analytics/analytics-charts';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/use-toast';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsPeriod, ReelAnalyticsRow } from '@/lib/types';
 
@@ -32,6 +34,18 @@ export default function ReelsAnalyticsPage() {
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
   const [sortKey, setSortKey] = React.useState<ReelSortKey>('views');
   const [sortDir, setSortDir] = React.useState<SortDirection>('desc');
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 5) {
+        toast({ title: 'Compare limit', description: 'Select up to 5 reels to compare.' });
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
 
   const { data: rows, isLoading, isError } = useReelAnalyticsList(period, 50);
 
@@ -78,12 +92,48 @@ export default function ReelsAnalyticsPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs" data-testid="analytics-reels-table">
-                <thead className="bg-muted/40 text-muted-foreground border-b">
-                  <tr>
-                    <th className="px-3 py-2.5 text-left font-medium min-w-[200px]">Reel</th>
+          <div className="space-y-3">
+            {selectedIds.length > 0 && (
+              <div
+                data-testid="reels-compare-bar"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-4 py-2.5 shadow-sm text-xs"
+              >
+                <span className="font-medium text-foreground">
+                  {selectedIds.length} reel{selectedIds.length === 1 ? '' : 's'} selected
+                  {selectedIds.length < 2 ? ' (select at least 2 to compare)' : ''}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                    Clear
+                  </Button>
+                  {selectedIds.length >= 2 && (
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      data-testid="compare-selected-reels-btn"
+                      onClick={() =>
+                        router.push(
+                          `/analytics/compare?contentType=reel&ids=${selectedIds.join(',')}`
+                        )
+                      }
+                    >
+                      <Scale className="w-3.5 h-3.5" />
+                      <span>Compare ({selectedIds.length})</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" data-testid="analytics-reels-table">
+                  <thead className="bg-muted/40 text-muted-foreground border-b">
+                    <tr>
+                      <th className="w-10 px-3 py-2.5 text-center font-medium">
+                        <span className="sr-only">Compare</span>
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium min-w-[200px]">Reel</th>
                     <SortableColumnHeader label="Views" sortKey="views" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
                     <SortableColumnHeader label="Unique" sortKey="uniqueViews" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
                     <SortableColumnHeader label="Avg Watch" sortKey="avgWatchSeconds" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
@@ -104,6 +154,19 @@ export default function ReelsAnalyticsPage() {
                       data-testid={`analytics-reel-row-${row.reelId}`}
                       className="hover:bg-accent/50 cursor-pointer transition-colors"
                     >
+                      <td
+                        className="px-3 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.reelId)}
+                          onChange={() => toggleSelect(row.reelId)}
+                          aria-label={`Select reel ${row.reelId} for comparison`}
+                          data-testid={`compare-checkbox-reel-${row.reelId}`}
+                          className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
                           {row.thumbnailUrl ? (
@@ -142,6 +205,7 @@ export default function ReelsAnalyticsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         )}
       </div>

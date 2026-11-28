@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText } from 'lucide-react';
+import { FileText, Scale } from 'lucide-react';
 import { usePostAnalyticsList } from '@/hooks/useAnalytics';
 import { AnalyticsHeader, formatShortDate } from '@/components/analytics/analytics-shell';
 import {
@@ -10,7 +10,9 @@ import {
   sortRowsByKey,
   type SortDirection,
 } from '@/components/analytics/analytics-charts';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/use-toast';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsPeriod, PostAnalyticsRow } from '@/lib/types';
 
@@ -31,6 +33,18 @@ export default function PostsAnalyticsPage() {
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
   const [sortKey, setSortKey] = React.useState<PostSortKey>('impressions');
   const [sortDir, setSortDir] = React.useState<SortDirection>('desc');
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 5) {
+        toast({ title: 'Compare limit', description: 'Select up to 5 posts to compare.' });
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
 
   const { data: rows, isLoading, isError } = usePostAnalyticsList(period, 50);
 
@@ -77,12 +91,48 @@ export default function PostsAnalyticsPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs" data-testid="analytics-posts-table">
-                <thead className="bg-muted/40 text-muted-foreground border-b">
-                  <tr>
-                    <th className="px-3 py-2.5 text-left font-medium min-w-[220px]">Post</th>
+          <div className="space-y-3">
+            {selectedIds.length > 0 && (
+              <div
+                data-testid="posts-compare-bar"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-4 py-2.5 shadow-sm text-xs"
+              >
+                <span className="font-medium text-foreground">
+                  {selectedIds.length} post{selectedIds.length === 1 ? '' : 's'} selected
+                  {selectedIds.length < 2 ? ' (select at least 2 to compare)' : ''}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                    Clear
+                  </Button>
+                  {selectedIds.length >= 2 && (
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      data-testid="compare-selected-posts-btn"
+                      onClick={() =>
+                        router.push(
+                          `/analytics/compare?contentType=post&ids=${selectedIds.join(',')}`
+                        )
+                      }
+                    >
+                      <Scale className="w-3.5 h-3.5" />
+                      <span>Compare ({selectedIds.length})</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" data-testid="analytics-posts-table">
+                  <thead className="bg-muted/40 text-muted-foreground border-b">
+                    <tr>
+                      <th className="w-10 px-3 py-2.5 text-center font-medium">
+                        <span className="sr-only">Compare</span>
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium min-w-[220px]">Post</th>
                     <SortableColumnHeader label="Date" sortKey="createdAt" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
                     <SortableColumnHeader label="Impr." sortKey="impressions" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
                     <SortableColumnHeader label="Reach" sortKey="reach" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
@@ -103,6 +153,19 @@ export default function PostsAnalyticsPage() {
                       data-testid={`analytics-post-row-${row.postId}`}
                       className="hover:bg-accent/50 cursor-pointer transition-colors"
                     >
+                      <td
+                        className="px-3 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.postId)}
+                          onChange={() => toggleSelect(row.postId)}
+                          aria-label={`Select post ${row.postId} for comparison`}
+                          data-testid={`compare-checkbox-post-${row.postId}`}
+                          className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
                           {row.thumbnailUrl ? (
@@ -141,6 +204,7 @@ export default function PostsAnalyticsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         )}
       </div>

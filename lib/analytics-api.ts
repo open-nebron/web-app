@@ -4,9 +4,21 @@ import type {
   AnalyticsOverviewResponse,
   AnalyticsPeriod,
   AnalyticsSource,
+  AudienceActivityResponse,
   AudienceAnalyticsResponse,
+  AudienceGrowthResponse,
+  AudienceSourcesResponse,
+  BestTimeResponse,
+  CohortComparisonResponse,
+  CompareAgainst,
   ContentAnalyticsDeepDiveResponse,
+  ContentCurveResponse,
+  ContentDecayResponse,
   ContentEngagementDepthResponse,
+  ContentSpeedResponse,
+  ContentTrafficResponse,
+  CrossContentCompareResponse,
+  HashtagPerformanceItem,
   PostAnalyticsRow,
   ReelAnalyticsRow,
   StoryAnalyticsRow,
@@ -140,5 +152,98 @@ export const analyticsApi = {
 
   async getAudienceAnalytics(period: AnalyticsPeriod = '30d'): Promise<AudienceAnalyticsResponse> {
     return apiFetch<AudienceAnalyticsResponse>(`/api/core/analytics/me/audience?period=${period}`);
+  },
+
+  async getContentCurve(
+    contentType: AnalyticsContentType,
+    contentId: string
+  ): Promise<ContentCurveResponse> {
+    return apiFetch<ContentCurveResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/curve`
+    );
+  },
+
+  async getContentTraffic(
+    contentType: AnalyticsContentType,
+    contentId: string
+  ): Promise<ContentTrafficResponse> {
+    return apiFetch<ContentTrafficResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/traffic`
+    );
+  },
+
+  async getCohortComparison(
+    contentType: AnalyticsContentType,
+    contentId: string,
+    against: CompareAgainst = 'previous_post'
+  ): Promise<CohortComparisonResponse> {
+    return apiFetch<CohortComparisonResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/compare?against=${against}`
+    );
+  },
+
+  async getContentSpeed(
+    contentType: AnalyticsContentType,
+    contentId: string
+  ): Promise<ContentSpeedResponse> {
+    return apiFetch<ContentSpeedResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/speed`
+    );
+  },
+
+  async getContentDecay(
+    contentType: AnalyticsContentType,
+    contentId: string
+  ): Promise<ContentDecayResponse> {
+    return apiFetch<ContentDecayResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/decay`
+    );
+  },
+
+  async getHashtagsAnalytics(
+    period: AnalyticsPeriod = '30d',
+    limit: number = 20
+  ): Promise<{ hashtags: HashtagPerformanceItem[] }> {
+    return apiFetch<{ hashtags: HashtagPerformanceItem[] }>(
+      `/api/core/analytics/me/hashtags?period=${period}&limit=${limit}`
+    );
+  },
+
+  async getBestTime(
+    contentType?: AnalyticsContentType,
+    period: AnalyticsPeriod = '30d'
+  ): Promise<BestTimeResponse> {
+    const sp = new URLSearchParams({ period });
+    if (contentType) sp.set('contentType', contentType);
+    return apiFetch<BestTimeResponse>(`/api/core/analytics/me/best-time?${sp.toString()}`);
+  },
+
+  async getAudienceActivity(period: AnalyticsPeriod = '30d'): Promise<AudienceActivityResponse> {
+    return apiFetch<AudienceActivityResponse>(
+      `/api/core/analytics/me/audience/activity?period=${period}`
+    );
+  },
+
+  async getAudienceGrowth(period: AnalyticsPeriod = '30d'): Promise<AudienceGrowthResponse> {
+    return apiFetch<AudienceGrowthResponse>(
+      `/api/core/analytics/me/audience/growth?period=${period}`
+    );
+  },
+
+  async getAudienceSources(period: AnalyticsPeriod = '30d'): Promise<AudienceSourcesResponse> {
+    return apiFetch<AudienceSourcesResponse>(
+      `/api/core/analytics/me/audience/sources?period=${period}`
+    );
+  },
+
+  async getCrossContentCompare(
+    contentType: AnalyticsContentType,
+    contentIds: string[]
+  ): Promise<CrossContentCompareResponse> {
+    const sp = new URLSearchParams({
+      contentType,
+      contentIds: contentIds.join(','),
+    });
+    return apiFetch<CrossContentCompareResponse>(`/api/core/analytics/me/compare?${sp.toString()}`);
   },
 };

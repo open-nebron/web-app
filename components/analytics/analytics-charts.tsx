@@ -34,6 +34,7 @@ export interface LineSeriesDef {
   dataKey: string;
   name: string;
   color: string;
+  stackId?: string;
 }
 
 export function AnalyticsLineChart({
@@ -140,7 +141,8 @@ export function AnalyticsBarChart({
               dataKey={b.dataKey}
               name={b.name}
               fill={b.color}
-              radius={[4, 4, 0, 0]}
+              stackId={b.stackId}
+              radius={b.stackId ? undefined : [4, 4, 0, 0]}
             />
           ))}
         </BarChart>

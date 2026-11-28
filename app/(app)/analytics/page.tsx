@@ -16,7 +16,11 @@ import {
   MessageCircle,
   Share2,
 } from 'lucide-react';
-import { useAnalyticsOverview } from '@/hooks/useAnalytics';
+import {
+  useAnalyticsAudienceSources,
+  useAnalyticsBestTime,
+  useAnalyticsOverview,
+} from '@/hooks/useAnalytics';
 import {
   AnalyticsHeader,
   AnalyticsStatCard,
@@ -28,7 +32,8 @@ import {
 } from '@/components/analytics/analytics-charts';
 import { ActivityHeatmap } from '@/components/analytics/activity-heatmap';
 import { Skeleton } from '@/components/ui/skeleton';
-import { normalizeStorageUrl } from '@/lib/utils';
+import { buildStackedFollowSourceSeries, FOLLOW_SOURCE_SERIES } from '@/lib/analytics-utils';
+import { cn, normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsContentType, AnalyticsPeriod, OverviewTopContentItem } from '@/lib/types';
 
 function contentRoute(type: AnalyticsContentType, id: string): string {
@@ -120,7 +125,13 @@ function SpotlightCard({
 
 export default function AnalyticsOverviewPage() {
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
+  const [bestTimeFilter, setBestTimeFilter] = React.useState<'all' | AnalyticsContentType>('all');
   const { data, isLoading, isError } = useAnalyticsOverview(period);
+  const { data: sourcesData } = useAnalyticsAudienceSources(period);
+  const { data: bestTimeData } = useAnalyticsBestTime(
+    bestTimeFilter === 'all' ? undefined : bestTimeFilter,
+    period
+  );
 
   const chartData = React.useMemo(
     () =>
@@ -130,6 +141,13 @@ export default function AnalyticsOverviewPage() {
       })),
     [data]
   );
+
+  const stackedFollowerData = React.useMemo(() => {
+    const dates = (data?.dailyActivity ?? []).map((d) => d.date);
+    return buildStackedFollowSourceSeries(dates, sourcesData?.trend ?? []);
+  }, [data, sourcesData]);
+
+  const hasAttributedFollows = (sourcesData?.trend?.length ?? 0) > 0;
 
   const totalEngagement = data
     ? data.engagement.likes +
@@ -237,18 +255,36 @@ export default function AnalyticsOverviewPage() {
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
-                <div>
-                  <h2 className="text-base font-semibold">Follower Growth</h2>
-                  <p className="text-xs text-muted-foreground">
-                    New followers gained per day ({period})
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-base font-semibold">Follower Growth</h2>
+                    <p className="text-xs text-muted-foreground">
+                      {hasAttributedFollows
+                        ? `New followers by source breakdown (${period})`
+                        : `New followers gained per day (${period})`}
+                    </p>
+                  </div>
+                  {sourcesData?.topSource && (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                      Top source: {sourcesData.topSource}
+                    </span>
+                  )}
                 </div>
-                <AnalyticsLineChart
-                  data={chartData}
-                  xKey="label"
-                  series={[{ dataKey: 'followersGained', name: 'New Followers', color: '#6366f1' }]}
-                  testId="chart-follower-growth"
-                />
+                {hasAttributedFollows ? (
+                  <AnalyticsBarChart
+                    data={stackedFollowerData}
+                    xKey="label"
+                    bars={FOLLOW_SOURCE_SERIES}
+                    testId="chart-follower-growth"
+                  />
+                ) : (
+                  <AnalyticsLineChart
+                    data={chartData}
+                    xKey="label"
+                    series={[{ dataKey: 'followersGained', name: 'New Followers', color: '#6366f1' }]}
+                    testId="chart-follower-growth"
+                  />
+                )}
               </div>
 
               <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
@@ -306,28 +342,60 @@ export default function AnalyticsOverviewPage() {
 
             {/* 7x24 Best Time to Post Heatmap */}
             <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold">Best Time to Post</h2>
                   <p className="text-xs text-muted-foreground">
-                    Hourly engagement and view activity across days of the week
+                    {bestTimeData?.recommendation ||
+                      'Hourly engagement and view activity across days of the week'}
                   </p>
                 </div>
-                {data.bestTimeToPost.length > 0 && (
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <span className="text-muted-foreground">Top hours:</span>
-                    {data.bestTimeToPost.slice(0, 3).map((h) => (
-                      <span
-                        key={h}
-                        className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-lg border bg-card p-0.5 text-xs">
+                    {(['all', 'post', 'reel', 'story'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setBestTimeFilter(t)}
+                        data-testid={`best-time-filter-${t}`}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md capitalize transition-colors',
+                          bestTimeFilter === t
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
                       >
-                        {String(h).padStart(2, '0')}:00 UTC
-                      </span>
+                        {t}
+                      </button>
                     ))}
                   </div>
-                )}
+
+                  {(bestTimeData?.top3Hours?.length ? bestTimeData.top3Hours : data.bestTimeToPost).length > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-muted-foreground">Top hours:</span>
+                      {(bestTimeData?.top3Hours?.length
+                        ? bestTimeData.top3Hours
+                        : data.bestTimeToPost
+                      )
+                        .slice(0, 3)
+                        .map((h) => (
+                          <span
+                            key={h}
+                            className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
+                          >
+                            {String(h).padStart(2, '0')}:00 UTC
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <ActivityHeatmap matrix={data.activityHeatmap} unitLabel="events" />
+              <ActivityHeatmap
+                matrix={data.activityHeatmap}
+                unitLabel="events"
+                hourDetails={bestTimeData?.hours}
+              />
             </div>
           </>
         )}

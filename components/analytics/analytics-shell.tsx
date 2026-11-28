@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, BarChart3, Film, FileText, Radio, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, Film, FileText, Hash, Radio, Users } from 'lucide-react';
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/analytics/posts', label: 'Posts', icon: FileText },
   { href: '/analytics/reels', label: 'Reels', icon: Film },
   { href: '/analytics/stories', label: 'Stories', icon: Radio },
+  { href: '/analytics/hashtags', label: 'Hashtags', icon: Hash },
   { href: '/analytics/audience', label: 'Audience', icon: Users },
 ];
 
