@@ -55,8 +55,8 @@ export function useImpressionBeacon<T extends HTMLElement = HTMLDivElement>(
 ): React.RefObject<T> {
   const ref = React.useRef<T>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
-  const user = useAuthStore((s) => s.user);
-  const isAuthenticated = Boolean(accessToken || user);
+  const status = useAuthStore((s) => s.status);
+  const isAuthenticated = status === 'authenticated' && Boolean(accessToken);
 
   React.useEffect(() => {
     const el = ref.current;
@@ -124,8 +124,8 @@ export function useViewTracking(
 ): ViewTrackingControls {
   const { active, source = 'feed', totalSeconds = 0, enabled = true } = options;
   const accessToken = useAuthStore((s) => s.accessToken);
-  const user = useAuthStore((s) => s.user);
-  const isAuthenticated = Boolean(accessToken || user);
+  const status = useAuthStore((s) => s.status);
+  const isAuthenticated = status === 'authenticated' && Boolean(accessToken);
 
   const stateRef = React.useRef({
     viewId: null as string | null,
@@ -185,6 +185,7 @@ export function useViewTracking(
       const vid = explicitViewId ?? stateRef.current.viewId;
       if (!vid || stateRef.current.ended) return;
       stateRef.current.ended = true;
+      if (!useAuthStore.getState().accessToken) return;
       syncElapsedWatchTime();
       const s = stateRef.current;
       analyticsApi
@@ -221,7 +222,7 @@ export function useViewTracking(
       if (cancelled || stateRef.current.ended) return;
       syncElapsedWatchTime();
       const s = stateRef.current;
-      if (!s.viewId || s.isPaused) return;
+      if (!s.viewId || s.isPaused || !useAuthStore.getState().accessToken) return;
       analyticsApi
         .heartbeatView({
           viewId: s.viewId,
@@ -295,11 +296,12 @@ export function useViewTracking(
  */
 export function useProfileVisitBeacon(visitedUserId: string | undefined, selfUserId?: string) {
   const accessToken = useAuthStore((s) => s.accessToken);
+  const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
   const currentUserId = selfUserId || user?.userId;
 
   React.useEffect(() => {
-    if (!visitedUserId || (!accessToken && !user)) return;
+    if (!visitedUserId || status !== 'authenticated' || !accessToken) return;
     if (currentUserId && currentUserId === visitedUserId) return;
 
     const now = Date.now();
@@ -308,5 +310,5 @@ export function useProfileVisitBeacon(visitedUserId: string | undefined, selfUse
 
     recentProfileVisitTimestamps.set(visitedUserId, now);
     analyticsApi.recordProfileVisit(visitedUserId).catch(() => {});
-  }, [visitedUserId, currentUserId, accessToken, user]);
+  }, [visitedUserId, currentUserId, accessToken, status]);
 }

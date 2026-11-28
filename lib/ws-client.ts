@@ -170,6 +170,14 @@ export class WsClient {
       return;
     }
 
+    // Preserve active live WebSocket connection across proactive token rotation
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && this.token) {
+      this.token = token;
+      this.hasTriedTokenRefreshOn4401 = false;
+      this.lastRefreshedToken = null;
+      return;
+    }
+
     this.hasTriedTokenRefreshOn4401 = false;
     this.lastRefreshedToken = null;
 

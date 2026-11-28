@@ -32,12 +32,108 @@ interface FetchOptions extends RequestInit {
 
 let refreshPromise: Promise<RefreshResponse> | null = null;
 
+function decodeBase64Url(segment: string): string | null {
+  try {
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    if (typeof atob === 'function') {
+      return atob(padded);
+    }
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(padded, 'base64').toString('utf8');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts a JWT's expiration timestamp in epoch milliseconds, or null if invalid/missing.
+ */
+export function parseJwtExpiryMs(token: string | null | undefined): number | null {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3 || !parts[1]) return null;
+  const decoded = decodeBase64Url(parts[1]);
+  if (!decoded) return null;
+  try {
+    const payload = JSON.parse(decoded) as { exp?: unknown };
+    return typeof payload.exp === 'number' && Number.isFinite(payload.exp)
+      ? payload.exp * 1000
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns true if the token has a parseable `exp` within `bufferSeconds` of expiring.
+ */
+export function isTokenExpiringSoon(
+  token: string | null | undefined,
+  bufferSeconds: number = 15,
+  nowMs: number = Date.now()
+): boolean {
+  const expMs = parseJwtExpiryMs(token);
+  if (expMs === null) return false;
+  return expMs - nowMs <= bufferSeconds * 1000;
+}
+
+/**
+ * Computes delay (in ms) before scheduled proactive token refresh ahead of expiry.
+ */
+export function getProactiveRefreshDelayMs(
+  token: string | null | undefined,
+  bufferSeconds: number = 60,
+  nowMs: number = Date.now()
+): number | null {
+  const expMs = parseJwtExpiryMs(token);
+  if (expMs === null) return null;
+  return Math.max(5_000, expMs - nowMs - bufferSeconds * 1000);
+}
+
+function isAuthLifecyclePath(path: string): boolean {
+  return (
+    path.includes('/refresh/cookie') ||
+    path.includes('/login/cookie') ||
+    path.includes('/logout/cookie') ||
+    path.includes('/auth-cookie/register')
+  );
+}
+
+async function handleRefreshFailure(refreshErr: unknown): Promise<never> {
+  const errStatus = (refreshErr as { status?: number })?.status;
+  if (errStatus === 0 || errStatus === 429 || (typeof errStatus === 'number' && errStatus >= 500)) {
+    throw refreshErr;
+  }
+
+  useAuthStore.getState().clear();
+  if (
+    typeof window !== 'undefined' &&
+    !window.location.pathname.startsWith('/login') &&
+    !window.location.pathname.startsWith('/register')
+  ) {
+    window.location.href = '/login';
+  }
+  throw new ApiError(401, 'Session expired. Please log in again.');
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
   const { headers: customHeaders, _retry, ...restOptions } = options;
-  const token = useAuthStore.getState().accessToken;
+  let token = useAuthStore.getState().accessToken;
+
+  if (token && !_retry && !isAuthLifecyclePath(path) && isTokenExpiringSoon(token, 15)) {
+    try {
+      await authApi.refresh();
+      token = useAuthStore.getState().accessToken;
+    } catch (refreshErr) {
+      await handleRefreshFailure(refreshErr);
+    }
+  }
 
   const headers = new Headers(customHeaders);
   if (restOptions.body && !headers.has('Content-Type') && !(restOptions.body instanceof FormData)) {
@@ -69,20 +165,7 @@ export async function apiFetch<T = unknown>(
         _retry: true,
       });
     } catch (refreshErr) {
-      const errStatus = (refreshErr as { status?: number })?.status;
-      if (errStatus === 0 || errStatus === 429 || (typeof errStatus === 'number' && errStatus >= 500)) {
-        throw refreshErr;
-      }
-
-      useAuthStore.getState().clear();
-      if (
-        typeof window !== 'undefined' &&
-        !window.location.pathname.startsWith('/login') &&
-        !window.location.pathname.startsWith('/register')
-      ) {
-        window.location.href = '/login';
-      }
-      throw new ApiError(401, 'Session expired. Please log in again.');
+      await handleRefreshFailure(refreshErr);
     }
   }
 

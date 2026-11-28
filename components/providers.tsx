@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { getQueryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { authApi } from '@/lib/api';
+import { authApi, getProactiveRefreshDelayMs } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from '@/components/ui/use-toast';
 import { BanBanner } from '@/components/auth/ban-banner';
@@ -18,10 +18,22 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   const setStatus = useAuthStore((s) => s.setStatus);
   const setUser = useAuthStore((s) => s.setUser);
   const clear = useAuthStore((s) => s.clear);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const status = useAuthStore((s) => s.status);
 
   React.useEffect(() => {
     initAnalytics();
   }, []);
+
+  React.useEffect(() => {
+    if (status !== 'authenticated' || !accessToken) return;
+    const delayMs = getProactiveRefreshDelayMs(accessToken, 60);
+    if (delayMs === null) return;
+    const timer = window.setTimeout(() => {
+      authApi.refresh().catch(() => {});
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [accessToken, status]);
 
   React.useEffect(() => {
     if (initAuthPromise) return;
