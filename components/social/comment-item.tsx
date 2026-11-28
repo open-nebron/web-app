@@ -14,16 +14,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useProfile } from '@/hooks/use-profile';
+import { useAuthStore } from '@/lib/auth-store';
 import {
   useCommentReplies,
   useDeleteComment,
   useEditComment,
   usePinComment,
   useToggleCommentLike,
+  useToggleCommentReaction,
   useUnpinComment,
   type CommentTargetType,
 } from '@/hooks/useComments';
 import { useToggleCommentSave } from '@/hooks/useSaved';
+import { EmojiPicker } from '@/components/chat/emoji-picker';
+import { CommentReactions } from './comment-reactions';
 import { ReplyComposer } from './reply-composer';
 import { RichText } from './rich-text';
 import { ShareDialog } from './ShareDialog';
@@ -40,6 +44,7 @@ import {
   Heart,
   MessageSquare,
   Share2,
+  SmilePlus,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -80,6 +85,8 @@ export function CommentItem({
   className,
 }: CommentItemProps) {
   const { data: myProfile } = useProfile();
+  const authUserId = useAuthStore((s) => s.user?.userId);
+  const viewerUserId = authUserId ?? myProfile?.userId;
   const resolvedTargetType: CommentTargetType =
     targetType ?? comment.targetType ?? (comment.reelId ? 'reel' : 'post');
   const resolvedTargetId = targetId ?? comment.reelId ?? comment.postId ?? '';
@@ -89,6 +96,11 @@ export function CommentItem({
   const pinMutation = usePinComment(resolvedTargetId);
   const unpinMutation = useUnpinComment(resolvedTargetId);
   const likeMutation = useToggleCommentLike(resolvedTargetId, resolvedTargetType);
+  const reactionMutation = useToggleCommentReaction(
+    resolvedTargetId,
+    resolvedTargetType,
+    viewerUserId
+  );
   const saveMutation = useToggleCommentSave();
 
   const [reportOpen, setReportOpen] = React.useState(false);
@@ -210,6 +222,28 @@ export function CommentItem({
     saveMutation.mutate({
       commentId: comment.id,
       currentlySaved: Boolean(comment.savedByViewer),
+    });
+  };
+
+  const handleToggleReaction = (emoji: string, hasReacted: boolean) => {
+    if (isDeletedPlaceholder || reactionMutation.isPending) return;
+    reactionMutation.mutate({
+      commentId: comment.id,
+      emoji,
+      hasReacted,
+    });
+  };
+
+  const handlePickReaction = (emoji: string) => {
+    if (isDeletedPlaceholder || reactionMutation.isPending) return;
+    const already = Boolean(
+      viewerUserId &&
+        comment.reactions?.some((r) => r.emoji === emoji && r.userIds.includes(viewerUserId))
+    );
+    reactionMutation.mutate({
+      commentId: comment.id,
+      emoji,
+      hasReacted: already,
     });
   };
 
@@ -486,6 +520,16 @@ export function CommentItem({
             </p>
           )}
 
+          {!isDeletedPlaceholder && (comment.reactions?.length ?? 0) > 0 && (
+            <CommentReactions
+              commentId={comment.id}
+              reactions={comment.reactions}
+              currentUserId={viewerUserId}
+              disabled={reactionMutation.isPending}
+              onToggle={handleToggleReaction}
+            />
+          )}
+
           {!isDeletedPlaceholder && (
             <div className="mt-1.5 flex items-center gap-4 text-xs text-muted-foreground">
               <button
@@ -528,6 +572,18 @@ export function CommentItem({
                   <span data-testid={`comment-share-count-${comment.id}`}>{shareCount}</span>
                 )}
               </button>
+
+              <EmojiPicker onSelect={handlePickReaction} side="top" align="start">
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`comment-react-trigger-${comment.id}`}
+                  aria-label="Add reaction to comment"
+                  className="inline-flex items-center gap-1 opacity-75 group-hover:opacity-100 focus:opacity-100 transition-all hover:text-primary"
+                >
+                  <SmilePlus className="w-3.5 h-3.5" />
+                </button>
+              </EmojiPicker>
 
               <button
                 type="button"

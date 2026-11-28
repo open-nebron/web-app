@@ -50,6 +50,19 @@ export function useContentDeepDive(
   });
 }
 
+export function useContentDepth(
+  contentType: AnalyticsContentType,
+  contentId: string,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: ['analytics', 'content-depth', contentType, contentId],
+    queryFn: () => analyticsApi.getContentDepth(contentType, contentId),
+    enabled: enabled && Boolean(contentId),
+    staleTime: 30_000,
+  });
+}
+
 export function useAudienceAnalytics(period: AnalyticsPeriod = '30d') {
   return useQuery({
     queryKey: ['analytics', 'audience', period],

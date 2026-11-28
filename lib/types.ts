@@ -77,6 +77,12 @@ export interface CommentParentPreview {
   author: CommentAuthor;
 }
 
+export interface CommentReactionSummary {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
 export interface Comment {
   id: string;
   postId?: string;
@@ -103,6 +109,7 @@ export interface Comment {
   author: CommentAuthor;
   topReplies?: Comment[];
   parent?: CommentParentPreview;
+  reactions?: CommentReactionSummary[];
 }
 
 export interface Post {
@@ -562,5 +569,45 @@ export interface SocialSearchResponse<T = Post | ReelItem> {
   query: string;
   type: SocialSearchType;
   items: T[];
+}
+
+export interface DepthMetricCount {
+  count: number;
+  uniqueUsers: number;
+}
+
+export interface DepthReactionBreakdown extends DepthMetricCount {
+  topEmojis: Array<{ emoji: string; count: number }>;
+}
+
+export interface TopCommenterEntry {
+  userId: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  commentCount: number;
+}
+
+export interface ContentEngagementDepthResponse {
+  impressions: number;
+  reach: number;
+  engagements: {
+    total: number;
+    unique: number;
+    breakdown: {
+      like: DepthMetricCount;
+      comment: DepthMetricCount;
+      reply: DepthMetricCount;
+      reaction: DepthReactionBreakdown;
+      save: DepthMetricCount;
+      share: DepthMetricCount;
+      viewLong: DepthMetricCount;
+    };
+  };
+  engagementRate: number;
+  avgDepthPerUser: number;
+  uniqueEngagedUsers: number;
+  discussionScore: number;
+  topCommenters: TopCommenterEntry[];
 }
 

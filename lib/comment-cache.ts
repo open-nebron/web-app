@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Comment, Post, ReelItem } from './types';
+import type { Comment, CommentReactionSummary, Post, ReelItem } from './types';
 
 export interface CommentRepliedWsPayload {
   commentId: string;
@@ -372,6 +372,19 @@ export interface ContentSavePatch {
   saveCount?: number;
   saveDelta?: number;
   shareCount?: number;
+  reactions?: CommentReactionSummary[];
+}
+
+export interface CommentReactionWsPayload {
+  commentId: string;
+  postId?: string;
+  reelId?: string;
+  targetType?: 'post' | 'reel';
+  parentCommentId?: string | null;
+  emoji: string;
+  userId: string;
+  at?: string;
+  reactions?: CommentReactionSummary[];
 }
 
 export interface ContentSavedWsPayload {
@@ -409,28 +422,27 @@ function mergeMetricPatch<T extends { saveCount?: number; shareCount?: number; s
     ...(patch.savedByViewer !== undefined ? { savedByViewer: patch.savedByViewer } : {}),
     ...(nextSaveCount !== undefined ? { saveCount: nextSaveCount } : {}),
     ...(typeof patch.shareCount === 'number' ? { shareCount: Math.max(0, patch.shareCount) } : {}),
+    ...(patch.reactions !== undefined ? { reactions: patch.reactions } : {}),
   };
 }
 
-function updateCommentTreePatch(
+function updateCommentTreeWith(
   list: Comment[],
   commentId: string,
-  patch: ContentSavePatch
+  updater: (comment: Comment) => Comment
 ): Comment[] {
   let changed = false;
   const next = list.map((comment) => {
     let nextComment = comment;
     if (comment.id === commentId) {
       changed = true;
-      nextComment = mergeMetricPatch(nextComment, patch);
+      nextComment = updater(nextComment);
     }
     if (comment.topReplies && comment.topReplies.some((r) => r.id === commentId)) {
       changed = true;
       nextComment = {
         ...nextComment,
-        topReplies: comment.topReplies.map((r) =>
-          r.id === commentId ? mergeMetricPatch(r, patch) : r
-        ),
+        topReplies: comment.topReplies.map((r) => (r.id === commentId ? updater(r) : r)),
       };
     }
     return nextComment;
@@ -530,17 +542,15 @@ export function patchReelInCaches(
   });
 }
 
-/**
- * Patches save/share counters & savedByViewer for a comment across all active React Query caches.
- */
-export function patchCommentInCaches(
+function patchCommentCachesWith(
   queryClient: QueryClient,
   commentId: string,
-  patch: ContentSavePatch
+  updater: (comment: Comment) => Comment,
+  removeFromSaved: boolean = false
 ): void {
   for (const key of [['comments'], ['reel-comments'], ['comment-replies']] as const) {
     queryClient.setQueriesData<Comment[]>({ queryKey: key }, (old) =>
-      Array.isArray(old) ? updateCommentTreePatch(old, commentId, patch) : old
+      Array.isArray(old) ? updateCommentTreeWith(old, commentId, updater) : old
     );
   }
 
@@ -550,16 +560,16 @@ export function patchCommentInCaches(
       ...old,
       pages: old.pages.map((page: Comment[]) => {
         if (!Array.isArray(page)) return page;
-        return patch.savedByViewer === false
+        return removeFromSaved
           ? page.filter((c) => c.id !== commentId)
-          : updateCommentTreePatch(page, commentId, patch);
+          : updateCommentTreeWith(page, commentId, updater);
       }),
     };
   });
 
   const patchPostComments = (p: Post): Post =>
     Array.isArray(p.comments)
-      ? { ...p, comments: updateCommentTreePatch(p.comments, commentId, patch) }
+      ? { ...p, comments: updateCommentTreeWith(p.comments, commentId, updater) }
       : p;
 
   queryClient.setQueriesData<Post>({ queryKey: ['post'] }, (old) =>
@@ -578,6 +588,22 @@ export function patchCommentInCaches(
       })),
     };
   });
+}
+
+/**
+ * Patches save/share counters & savedByViewer for a comment across all active React Query caches.
+ */
+export function patchCommentInCaches(
+  queryClient: QueryClient,
+  commentId: string,
+  patch: ContentSavePatch
+): void {
+  patchCommentCachesWith(
+    queryClient,
+    commentId,
+    (comment) => mergeMetricPatch(comment, patch),
+    patch.savedByViewer === false
+  );
 }
 
 /**
@@ -604,6 +630,63 @@ export function applySavedWsEvent(
     patchCommentInCaches(queryClient, payload.commentId, patch);
     queryClient.invalidateQueries({ queryKey: ['saved-comments'] });
   }
+}
+
+function toggleReactionSummary(
+  reactions: CommentReactionSummary[] | undefined,
+  emoji: string,
+  userId: string,
+  added: boolean
+): CommentReactionSummary[] {
+  const list = (reactions ?? []).map((r) => ({ ...r, userIds: [...r.userIds] }));
+  const idx = list.findIndex((r) => r.emoji === emoji);
+
+  if (added) {
+    if (idx === -1) {
+      list.push({ emoji, count: 1, userIds: userId ? [userId] : [] });
+    } else if (!userId || !list[idx].userIds.includes(userId)) {
+      list[idx].count += 1;
+      if (userId && list[idx].userIds.length < 50) {
+        list[idx].userIds.push(userId);
+      }
+    }
+    return list;
+  }
+
+  if (idx !== -1) {
+    const entry = list[idx];
+    if (!userId || entry.userIds.includes(userId)) {
+      entry.count = Math.max(0, entry.count - 1);
+      if (userId) {
+        entry.userIds = entry.userIds.filter((id) => id !== userId);
+      }
+    }
+    if (entry.count <= 0) {
+      list.splice(idx, 1);
+    }
+  }
+  return list;
+}
+
+/**
+ * Applies a real-time core.comment.reaction.{added,removed} update (or optimistic toggle)
+ * into all visible comment, reply, saved-comment, post-preview, and feed caches.
+ */
+export function applyCommentReactionEvent(
+  queryClient: QueryClient,
+  payload: CommentReactionWsPayload,
+  added: boolean = true
+): void {
+  if (!payload.commentId) return;
+  if (Array.isArray(payload.reactions)) {
+    patchCommentInCaches(queryClient, payload.commentId, { reactions: payload.reactions });
+    return;
+  }
+  if (!payload.emoji) return;
+  patchCommentCachesWith(queryClient, payload.commentId, (comment) => ({
+    ...comment,
+    reactions: toggleReactionSummary(comment.reactions, payload.emoji, payload.userId, added),
+  }));
 }
 
 /**

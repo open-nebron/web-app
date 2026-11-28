@@ -125,4 +125,12 @@ describe('V4-5 Analytics Frontend Client, Beacons & Helpers', () => {
     expect(sortRowsByKey(rows, 'views', 'asc').map((r) => r.id)).toEqual(['a', 'c', 'b']);
     expect(sortRowsByKey(rows, 'label', 'asc').map((r) => r.id)).toEqual(['b', 'c', 'a']);
   });
+
+  it('fetches content engagement depth metrics via analyticsApi.getContentDepth (V4.5-1)', async () => {
+    const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValueOnce({ discussionScore: 12 } as any);
+
+    const res = await analyticsApi.getContentDepth('post', 'post-42');
+    expect(spy).toHaveBeenCalledWith('/api/core/analytics/me/content/post/post-42/depth');
+    expect(res.discussionScore).toBe(12);
+  });
 });

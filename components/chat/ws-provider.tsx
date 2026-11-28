@@ -9,6 +9,7 @@ import type { WSTypingPayload, WSPresencePayload, ChatMessage, ReactionSummary }
 import {
   applyCommentDeletedEvent,
   applyCommentLikeEvent,
+  applyCommentReactionEvent,
   applyCommentRepliedEvent,
   applyCommentUpdatedEvent,
   applyContentSharedWsEvent,
@@ -16,6 +17,7 @@ import {
   type CommentDeletedWsPayload,
   type CommentLikedWsPayload,
   type CommentPinnedWsPayload,
+  type CommentReactionWsPayload,
   type CommentRepliedWsPayload,
   type CommentUpdatedWsPayload,
   type ContentSavedWsPayload,
@@ -375,6 +377,25 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unsubCommentReactionAdded = client.on('core.comment.reaction.added', (data: unknown) => {
+      const raw = data as { payload?: CommentReactionWsPayload };
+      const payload = raw?.payload ?? (data as CommentReactionWsPayload);
+      if (payload?.commentId) {
+        applyCommentReactionEvent(queryClient, payload, true);
+      }
+    });
+
+    const unsubCommentReactionRemoved = client.on(
+      'core.comment.reaction.removed',
+      (data: unknown) => {
+        const raw = data as { payload?: CommentReactionWsPayload };
+        const payload = raw?.payload ?? (data as CommentReactionWsPayload);
+        if (payload?.commentId) {
+          applyCommentReactionEvent(queryClient, payload, false);
+        }
+      }
+    );
+
     const unsubCommentPinned = client.on('core.comment.pinned', (data: unknown) => {
       const raw = data as { payload?: CommentPinnedWsPayload };
       const payload = raw?.payload ?? (data as CommentPinnedWsPayload);
@@ -504,6 +525,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       unsubCommentLiked();
       unsubCommentUnliked();
       unsubCommentUpdated();
+      unsubCommentReactionAdded();
+      unsubCommentReactionRemoved();
       unsubCommentPinned();
       unsubCommentUnpinned();
       unsubPostEdited();

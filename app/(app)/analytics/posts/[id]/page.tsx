@@ -14,8 +14,10 @@ import {
   AnalyticsLineChart,
   TrafficSourcesPieChart,
 } from '@/components/analytics/analytics-charts';
+import { EngagementDepthPanel } from '@/components/analytics/engagement-depth-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeStorageUrl } from '@/lib/utils';
 import type { AnalyticsPeriod } from '@/lib/types';
 
@@ -23,6 +25,16 @@ export default function PostAnalyticsDetailPage() {
   const params = useParams();
   const postId = typeof params?.id === 'string' ? params.id : '';
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d');
+  const [activeTab, setActiveTab] = React.useState<'overview' | 'depth'>('overview');
+
+  React.useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('tab') === 'depth'
+    ) {
+      setActiveTab('depth');
+    }
+  }, []);
 
   const { data, isLoading, isError } = useContentDeepDive('post', postId, period);
 
@@ -100,59 +112,85 @@ export default function PostAnalyticsDetailPage() {
               </Button>
             </div>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <AnalyticsStatCard label="Impressions" value={data.totals.impressions} sublabel={`${data.totals.reach} reach`} icon={Eye} />
-              <AnalyticsStatCard label="Likes" value={data.totals.likes} icon={Heart} />
-              <AnalyticsStatCard label="Comments" value={data.totals.comments} icon={MessageCircle} />
-              <AnalyticsStatCard label="Shares" value={data.totals.shares} icon={Share2} />
-              <AnalyticsStatCard label="Saves" value={data.totals.saves} icon={Bookmark} />
-              <AnalyticsStatCard
-                label="Profile Visits"
-                value={data.profileVisits}
-                sublabel={`+${data.newFollowers} follows`}
-                icon={UserCheck}
-              />
-            </div>
+            {/* Tabs: Overview & Depth */}
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as 'overview' | 'depth')}
+              className="space-y-6"
+            >
+              <TabsList data-testid="post-analytics-tabs">
+                <TabsTrigger value="overview" data-testid="post-tab-overview">
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="depth" data-testid="post-tab-depth">
+                  Depth
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-sm space-y-4">
-                <div>
-                  <h2 className="text-base font-semibold">Performance Over Time</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Daily impressions, likes, comments, shares, and saves
-                  </p>
+              <TabsContent value="overview" className="space-y-6 mt-0">
+                {/* KPIs */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <AnalyticsStatCard label="Impressions" value={data.totals.impressions} sublabel={`${data.totals.reach} reach`} icon={Eye} />
+                  <AnalyticsStatCard label="Likes" value={data.totals.likes} icon={Heart} />
+                  <AnalyticsStatCard label="Comments" value={data.totals.comments} icon={MessageCircle} />
+                  <AnalyticsStatCard label="Shares" value={data.totals.shares} icon={Share2} />
+                  <AnalyticsStatCard label="Saves" value={data.totals.saves} icon={Bookmark} />
+                  <AnalyticsStatCard
+                    label="Profile Visits"
+                    value={data.profileVisits}
+                    sublabel={`+${data.newFollowers} follows`}
+                    icon={UserCheck}
+                  />
                 </div>
-                <AnalyticsLineChart
-                  data={seriesData}
-                  xKey="label"
-                  series={[
-                    { dataKey: 'impressions', name: 'Impressions', color: '#6366f1' },
-                    { dataKey: 'likes', name: 'Likes', color: '#ec4899' },
-                    { dataKey: 'saves', name: 'Saves', color: '#f59e0b' },
-                    { dataKey: 'shares', name: 'Shares', color: '#14b8a6' },
-                  ]}
-                  testId="post-detail-timeseries-chart"
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-sm space-y-4">
+                    <div>
+                      <h2 className="text-base font-semibold">Performance Over Time</h2>
+                      <p className="text-xs text-muted-foreground">
+                        Daily impressions, likes, comments, shares, and saves
+                      </p>
+                    </div>
+                    <AnalyticsLineChart
+                      data={seriesData}
+                      xKey="label"
+                      series={[
+                        { dataKey: 'impressions', name: 'Impressions', color: '#6366f1' },
+                        { dataKey: 'likes', name: 'Likes', color: '#ec4899' },
+                        { dataKey: 'saves', name: 'Saves', color: '#f59e0b' },
+                        { dataKey: 'shares', name: 'Shares', color: '#14b8a6' },
+                      ]}
+                      testId="post-detail-timeseries-chart"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+                    <div>
+                      <h2 className="text-base font-semibold">Traffic Sources</h2>
+                      <p className="text-xs text-muted-foreground">
+                        Where viewers discovered this post
+                      </p>
+                    </div>
+                    <TrafficSourcesPieChart data={pieData} testId="post-detail-traffic-pie" />
+                    <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <UserPlus className="w-3.5 h-3.5 text-primary" />
+                        Attributed follows
+                      </span>
+                      <span className="font-semibold text-foreground">{data.newFollowers}</span>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="depth" className="mt-0">
+                <EngagementDepthPanel
+                  contentType="post"
+                  contentId={postId}
+                  enabled={activeTab === 'depth'}
                 />
-              </div>
-
-              <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
-                <div>
-                  <h2 className="text-base font-semibold">Traffic Sources</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Where viewers discovered this post
-                  </p>
-                </div>
-                <TrafficSourcesPieChart data={pieData} testId="post-detail-traffic-pie" />
-                <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <UserPlus className="w-3.5 h-3.5 text-primary" />
-                    Attributed follows
-                  </span>
-                  <span className="font-semibold text-foreground">{data.newFollowers}</span>
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>

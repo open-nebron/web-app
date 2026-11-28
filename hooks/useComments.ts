@@ -6,7 +6,9 @@ import { reelsApi } from '@/lib/reels-api';
 import {
   adjustTargetCommentCount,
   applyCommentLikeEvent,
+  applyCommentReactionEvent,
   applyCommentUpdatedEvent,
+  patchCommentInCaches,
 } from '@/lib/comment-cache';
 import { toast } from '@/components/ui/use-toast';
 import type { Comment } from '@/lib/types';
@@ -372,6 +374,72 @@ export function useUnpinComment(postId: string) {
         title: 'Could not unpin comment',
         description: error.message || 'Failed to unpin comment',
       });
+    },
+  });
+}
+
+export function useToggleCommentReaction(
+  targetId: string,
+  targetType: CommentTargetType = 'post',
+  currentUserId?: string
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      commentId,
+      emoji,
+      hasReacted,
+    }: {
+      commentId: string;
+      emoji: string;
+      hasReacted: boolean;
+    }) =>
+      hasReacted
+        ? socialApi.removeCommentReaction(commentId, emoji)
+        : socialApi.addCommentReaction(commentId, emoji),
+    onMutate: async ({ commentId, emoji, hasReacted }) => {
+      const listPrefix = commentsQueryPrefix(targetId, targetType);
+      await queryClient.cancelQueries({ queryKey: listPrefix });
+      await queryClient.cancelQueries({ queryKey: ['comment-replies'] });
+
+      const prevLists = queryClient.getQueriesData<Comment[]>({ queryKey: listPrefix });
+      const prevReplies = queryClient.getQueriesData<Comment[]>({ queryKey: ['comment-replies'] });
+
+      if (currentUserId) {
+        applyCommentReactionEvent(
+          queryClient,
+          {
+            commentId,
+            postId: targetType === 'post' ? targetId : undefined,
+            reelId: targetType === 'reel' ? targetId : undefined,
+            targetType,
+            emoji,
+            userId: currentUserId,
+          },
+          !hasReacted
+        );
+      }
+
+      return { prevLists, prevReplies };
+    },
+    onError: (error: { message?: string }, _vars, context) => {
+      if (context) {
+        for (const [key, data] of context.prevLists) {
+          queryClient.setQueryData(key, data);
+        }
+        for (const [key, data] of context.prevReplies) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Reaction failed',
+        description: error?.message || 'Could not update comment reaction.',
+      });
+    },
+    onSuccess: (data, vars) => {
+      patchCommentInCaches(queryClient, vars.commentId, { reactions: data.reactions });
     },
   });
 }

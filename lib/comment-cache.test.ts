@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import {
   applyCommentDeletedEvent,
   applyCommentLikeEvent,
+  applyCommentReactionEvent,
   applyCommentRepliedEvent,
   applyCommentUpdatedEvent,
 } from './comment-cache';
@@ -182,5 +183,72 @@ describe('comment-cache WS helpers (V4-1)', () => {
 
     const cachedPost = qc.getQueryData<Post>(['post', 'p1'])!;
     expect(cachedPost.comments?.[0].body).toBe('Edited root @bob #news');
+  });
+
+  it('updates comment reaction summaries across lists, replies, and post previews (V4.5-1)', () => {
+    const qc = new QueryClient();
+    const fire = '\u{1F525}';
+    const heart = '\u{2764}\u{FE0F}';
+    const reply = makeComment({ id: 'r1', parentCommentId: 'c1' });
+    const root = makeComment({ id: 'c1', topReplies: [reply] });
+
+    qc.setQueryData<Comment[]>(['comments', 'p1', 'top'], [root]);
+    qc.setQueryData<Comment[]>(['comment-replies', 'c1'], [reply]);
+    qc.setQueryData<Post>(['post', 'p1'], {
+      id: 'p1',
+      body: 'Post body',
+      likeCount: 0,
+      commentCount: 2,
+      likedByViewer: false,
+      createdAt: '2026-11-27T09:00:00.000Z',
+      author: { userId: 'u1', username: 'alice', name: 'Alice', avatarUrl: null },
+      comments: [root],
+    });
+
+    // Server-authoritative summary update
+    applyCommentReactionEvent(
+      qc,
+      {
+        commentId: 'c1',
+        postId: 'p1',
+        emoji: fire,
+        userId: 'u2',
+        reactions: [{ emoji: fire, count: 1, userIds: ['u2'] }],
+      },
+      true
+    );
+    expect(qc.getQueryData<Comment[]>(['comments', 'p1', 'top'])![0].reactions).toEqual([
+      { emoji: fire, count: 1, userIds: ['u2'] },
+    ]);
+    expect(qc.getQueryData<Post>(['post', 'p1'])!.comments![0].reactions).toEqual([
+      { emoji: fire, count: 1, userIds: ['u2'] },
+    ]);
+
+    // Optimistic fallback without summary payload on reply
+    applyCommentReactionEvent(
+      qc,
+      {
+        commentId: 'r1',
+        postId: 'p1',
+        emoji: heart,
+        userId: 'u3',
+      },
+      true
+    );
+    expect(qc.getQueryData<Comment[]>(['comment-replies', 'c1'])![0].reactions).toEqual([
+      { emoji: heart, count: 1, userIds: ['u3'] },
+    ]);
+
+    applyCommentReactionEvent(
+      qc,
+      {
+        commentId: 'r1',
+        postId: 'p1',
+        emoji: heart,
+        userId: 'u3',
+      },
+      false
+    );
+    expect(qc.getQueryData<Comment[]>(['comment-replies', 'c1'])![0].reactions).toEqual([]);
   });
 });

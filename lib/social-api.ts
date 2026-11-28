@@ -2,6 +2,7 @@ import { apiFetch } from './api';
 import { normalizeStorageUrl } from './utils';
 import type {
   Comment,
+  CommentReactionSummary,
   FollowSourceType,
   HashtagPostsResponse,
   Post,
@@ -396,5 +397,33 @@ export const socialApi = {
       method: 'POST',
       body: JSON.stringify({ contentType, contentId }),
     });
+  },
+
+  async addCommentReaction(
+    commentId: string,
+    emoji: string
+  ): Promise<{ reactions: CommentReactionSummary[] }> {
+    return apiFetch<{ reactions: CommentReactionSummary[] }>(
+      `/api/core/comments/${encodeURIComponent(commentId)}/reactions/${encodeURIComponent(emoji)}`,
+      { method: 'PUT' }
+    );
+  },
+
+  async removeCommentReaction(
+    commentId: string,
+    emoji: string
+  ): Promise<{ reactions: CommentReactionSummary[] }> {
+    return apiFetch<{ reactions: CommentReactionSummary[] }>(
+      `/api/core/comments/${encodeURIComponent(commentId)}/reactions/${encodeURIComponent(emoji)}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  async getCommentReactions(
+    commentId: string
+  ): Promise<{ reactions: CommentReactionSummary[] }> {
+    return apiFetch<{ reactions: CommentReactionSummary[] }>(
+      `/api/core/comments/${encodeURIComponent(commentId)}/reactions`
+    );
   },
 };

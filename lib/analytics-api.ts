@@ -6,6 +6,7 @@ import type {
   AnalyticsSource,
   AudienceAnalyticsResponse,
   ContentAnalyticsDeepDiveResponse,
+  ContentEngagementDepthResponse,
   PostAnalyticsRow,
   ReelAnalyticsRow,
   StoryAnalyticsRow,
@@ -125,6 +126,15 @@ export const analyticsApi = {
   ): Promise<ContentAnalyticsDeepDiveResponse> {
     return apiFetch<ContentAnalyticsDeepDiveResponse>(
       `/api/core/analytics/me/content/${contentType}/${contentId}?period=${period}`
+    );
+  },
+
+  async getContentDepth(
+    contentType: AnalyticsContentType,
+    contentId: string
+  ): Promise<ContentEngagementDepthResponse> {
+    return apiFetch<ContentEngagementDepthResponse>(
+      `/api/core/analytics/me/content/${contentType}/${contentId}/depth`
     );
   },
 

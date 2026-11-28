@@ -362,5 +362,27 @@ describe('Social API', () => {
       expect(spy).toHaveBeenCalledWith('/api/core/users/search?q=ali&limit=6');
       expect(users).toEqual([]);
     });
+
+    it('adds, removes, and fetches comment reactions (V4.5-1)', async () => {
+      const fire = '\u{1F525}';
+      const mockSummary = { reactions: [{ emoji: fire, count: 1, userIds: ['u1'] }] };
+      const spy = vi.spyOn(apiModule, 'apiFetch').mockResolvedValue(mockSummary);
+
+      const added = await socialApi.addCommentReaction('c1', fire);
+      expect(spy).toHaveBeenCalledWith(
+        `/api/core/comments/c1/reactions/${encodeURIComponent(fire)}`,
+        { method: 'PUT' }
+      );
+      expect(added).toEqual(mockSummary);
+
+      await socialApi.getCommentReactions('c1');
+      expect(spy).toHaveBeenCalledWith('/api/core/comments/c1/reactions');
+
+      await socialApi.removeCommentReaction('c1', fire);
+      expect(spy).toHaveBeenCalledWith(
+        `/api/core/comments/c1/reactions/${encodeURIComponent(fire)}`,
+        { method: 'DELETE' }
+      );
+    });
   });
 });
